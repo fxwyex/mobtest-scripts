@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Settings (RUBY)
 // @namespace    http://tampermonkey.net/
-// @version      1.0.1
+// @version      1.0.2
 // @description  try to take over the world!
 // @author       You
 // @match        https://*.tech/*
@@ -28,7 +28,6 @@ unsafeWindow.tmScripts.sha256 = function sha256(ascii) {
     function rightRotate(value, amount) {
         return (value>>>amount) | (value<<(32 - amount));
     };
-
     var mathPow = Math.pow;
     var maxWord = mathPow(2, 32);
     var lengthProperty = 'length'
@@ -49,7 +48,6 @@ unsafeWindow.tmScripts.sha256 = function sha256(ascii) {
             k[primeCounter++] = (mathPow(candidate, 1/3)*maxWord)|0;
         }
     }
-
     ascii += '\x80'
     while (ascii[lengthProperty]%64 - 56) ascii += '\x00'
     for (i = 0; i < ascii[lengthProperty]; i++) {
@@ -125,7 +123,6 @@ function toastString(header = "###_UNDEFINED_###", body = "###_UNDEFINED_###", m
           </div>
       </ngb-toast>`
 }
-
 unsafeWindow.tmScripts.showToast = function({title = "",message = "",messageType = 0,time = 8} = {}) {
     let toastList = _E(".toasts-global__list")
     let toastResult = toastString(title, message, messageType)
@@ -139,7 +136,6 @@ unsafeWindow.tmScripts.showToast = function({title = "",message = "",messageType
     }, time*1000);
 }
 let settingsPanel
-
 function createSettingsMain() {
     let settingsContainer = `
 <ngb-modal-window tabindex="-1" aria-modal="true" role="dialog" class="modal fade hide" id="__rootSettings">
@@ -164,7 +160,6 @@ function createSettingsMain() {
     settingsPanel = _E("body").appendChild(fromHTML(settingsContainer));
 
 }
-
 unsafeWindow.tmScripts.createSettingsGroup = function(header = "") {
     let groupTemplate = `
                      <div class="modal-content modal-body">
@@ -346,17 +341,12 @@ const _updateSideBar = () => {
     if (!_E("#__settingsID")) {
         let targetNode = _E("app-main-menu-item").parentElement;
         targetNode.append(fromHTML(settingsButton));
-
-
-
         _E("body").append(fromHTML(settingsBackdrop));
         createSettingsMain();
-
         let btn = _E("#__settingsID");
         let state = false;
         let settingsClose = _E("#__settingClose");
         let settingsBackd = _E("#__rootBackdrop");
-
         let outsideClick = _E("#__rootSettings");
         let targetDown = "";
         outsideClick.onmousedown = function(e) {
@@ -412,9 +402,6 @@ function fromHTML(html) {
     }
     return result;
 }
-
-
-
     class AutoObserver {
         hooks = [];
         constructor() {}
@@ -512,20 +499,14 @@ function fromHTML(html) {
         }
     }
 
-
-
-
-
     let _autoObserver = new AutoObserver();
     let lastLocation = ""
     const mainLoop = function() {
         _autoObserver.rebindHooks();
     }
-
     _G.tmScripts.bind = (data) => _autoObserver.bind(data);
     _G.tmScripts.unbind = (data) => _autoObserver.unbind(data);
     _G.tmScripts._hooks = () => {return _autoObserver.hooks};
-
     _autoObserver.bind({onUpdate: mainLoop, search: "app-root", id: "_idMainLoop", href: ["*"]})
     _autoObserver.bind({onCreate:_updateSideBar, search: "app-sidebar", id: "_idSidebar", href: ["*"]})
 })();
