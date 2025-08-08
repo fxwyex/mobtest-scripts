@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Settings (RUBY)
 // @namespace    http://tampermonkey.net/
-// @version      1.0.2
+// @version      1.0.3
 // @description  try to take over the world!
 // @author       You
 // @match        https://*.tech/*
@@ -387,7 +387,6 @@ const _updateSideBar = () => {
         }
     };
 };
-
 function _E(ele, p = document) {
     return p.querySelector(ele)
 }
@@ -498,7 +497,6 @@ function fromHTML(html) {
             }
         }
     }
-
     let _autoObserver = new AutoObserver();
     let lastLocation = ""
     const mainLoop = function() {
