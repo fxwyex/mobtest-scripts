@@ -1,0 +1,664 @@
+// ==UserScript==
+// @name         Dimension automapper (RUBY)
+// @namespace    http://tampermonkey.net/
+// @version      1.0.0
+// @description  try to take over the world!
+// @author       You
+// @match        https://*.tech/*
+// @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
+// ==/UserScript==
+
+(function() {
+    'use strict';
+    let _G = unsafeWindow.tmScripts;
+    let isActive = false;
+    const modelLookupTemplate = `
+<app-order-info-custom id="__LookupMain2">
+    <div class="order-info" style="background: #fff;">
+        <div class="order-info__header border-bottom border-2 d-flex align-items-center justify-content-between" style="cursor:pointer;padding: 16px 24px;" id="_lkp_content_acc_click2">
+            <h6 class="mb-0 fw-stronger">Dimension Mapper</h6>
+        </div>
+        <div class="order-info__content" style="transition: height 0.3s ease; height: 0px; display: block; overflow: hidden;" id="_lkp_content_acc2">
+            <div style="display: flex;padding-top:20px;justify-content: center;">
+                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+                    Cloud Lock
+                </label>
+                <div style="width:100%">
+                    <select id="dim_1_3_custom" class="form-control _dimField" style="max-width: 100%;" data-required="False" data-type="int"></select>
+                </div>
+                <div class="col-sm-1" style="padding:10px;min-width:50px;">
+                    <input type="checkbox" id="dim_1_3_custom_force" style="width: 27px; height: 27px;">
+                </div>
+            </div>
+
+            <div style="display: flex;justify-content: center;">
+                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+                    Appearance
+                </label>
+                <div style="width:100%">
+                    <select id="dim_1_4_custom" class="form-control _dimField" style="max-width: 100%;" data-required="False" data-type="int"></select>
+                </div>
+                <div class="col-sm-1" style="padding:10px;min-width:50px;">
+                    <input type="checkbox" id="dim_1_4_custom_force" style="width: 27px; height: 27px;">
+                </div>
+            </div>
+            <div style="display: flex;justify-content: center;">
+                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+                    Functionality
+                </label>
+                <div style="width:100%">
+                    <select id="dim_1_10_custom" class="form-control _dimField" style="max-width: 100%;" data-required="False" data-type="int"></select>
+                </div>
+                <div class="col-sm-1" style="padding:10px;min-width:50px;">
+                    <input type="checkbox" id="dim_1_10_custom_force" style="width: 27px; height: 27px;">
+                </div>
+            </div>
+            <div style="display: flex;justify-content: center;">
+                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+                    Network Lock
+                </label>
+                <div style="width:100%">
+                    <select id="dim_1_11_custom" class="form-control _dimField" style="max-width: 100%" data-required="False" data-type="int"></select>
+                </div>
+                <div class="col-sm-1" style="padding:10px;min-width:50px;">
+                    <input type="checkbox" id="dim_1_11_custom_force" style="width: 27px; height: 27px;">
+                </div>
+            </div>
+            <div style="display: flex;justify-content: center;">
+                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+                    Software
+                </label>
+                <div style="width:100%">
+                    <select id="dim_1_17_custom" class="form-control _dimField" style="max-width: 100%;" data-required="False" data-type="int"></select>
+                </div>
+                <div class="col-sm-1" style="padding:10px;min-width:50px;">
+                    <input type="checkbox" id="dim_1_17_custom_force" style="width: 27px; height: 27px;">
+                </div>
+            </div>
+            <div style="display: flex;justify-content: center;">
+                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+                    Customized
+                </label>
+                <div style="width:100%">
+                    <select id="dim_1_22_custom" class="form-control _dimField" style="max-width: 100%;" data-required="False" data-type="int"></select>
+                </div>
+                <div class="col-sm-1" style="padding:10px;min-width:50px;">
+                    <input type="checkbox" id="dim_1_22_custom_force" style="width: 27px; height: 27px;">
+                </div>
+            </div>
+            <div style="display: flex;justify-content: center;">
+                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+                    Boxed
+                </label>
+                <div style="width:100%">
+                    <select id="dim_1_27_custom" class="form-control _dimField" style="max-width: 100%;" data-required="False" data-type="int"></select>
+                </div>
+                <div class="col-sm-1" style="padding:10px;min-width:50px;">
+                    <input type="checkbox" id="dim_1_27_custom_force" style="width: 27px; height: 27px;">
+                </div>
+            </div>
+            <div style="display: flex;justify-content: center;">
+                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+                    Battery status
+                </label>
+                <div style="width:100%">
+                    <select id="dim_1_34_custom" class="form-control _dimField" style="max-width: 100%;" data-required="False" data-type="int"></select>
+                </div>
+                <div class="col-sm-1" style="padding:10px;min-width:50px;">
+                    <input type="checkbox" id="dim_1_34_custom_force" style="width: 27px; height: 27px;">
+                </div>
+            </div>
+            <div style="padding: 16px;">
+                <button class="btn btn-primary" type="button" id="__mapper_apply">
+                    <div class="d-flex align-items-center">
+                        <div class="content" style="opacity: 1;"> Manually Apply Values </div>
+                    </div>
+                </button>
+                <button class="btn btn-primary" type="button" id="__mapper_clear_all">
+                    <div class="d-flex align-items-center">
+                        <div class="content" style="opacity: 1;"> Clear All </div>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+</app-order-info-custom>
+
+`
+
+    let dimState = {
+        "#dim_1_3_custom": {value:"0",force:false,field:"Cloud Lock"},
+        "#dim_1_10_custom": {value:"0",force:false,field:"Functionality"},
+        "#dim_1_4_custom": {value:"0",force:false,field:"Appearance"},
+        "#dim_1_11_custom": {value:"0",force:false,field:"Network Lock"},
+        "#dim_1_34_custom": {value:"0",force:false,field:"Battery status"},
+        "#dim_1_27_custom": {value:"0",force:false,field:"Boxed"},
+        "#dim_1_22_custom": {value:"0",force:false,field:"Customized"},
+        "#dim_1_17_custom": {value:"0",force:false,field:"Software"},
+    }
+    let faultList = {
+        "Fault Description": [
+            "",
+            "0 value device",
+            "Broken box seal",
+            "Completely exposed LCD",
+            "Dirt under screen(loose/changed LCD)",
+            "Extreme LCD fault",
+            "Extreme LCD Fault (black/dull screen)",
+            "Extreme LCD Fault (Lines)",
+            "Extreme LCD Fault (screenburn)",
+            "Extreme LCD Fault (spots)",
+            "Extremely heavy wear",
+            "Extremely swollen battery",
+            "Faulty battery (removable)",
+            "Faulty buttons",
+            "Faulty camera (Back)",
+            "Faulty Camera (Front)",
+            "Faulty charging socket (built-in battery)",
+            "Faulty charging socket (No Data Connection)",
+            "Faulty charging socket (removable battery)",
+            "Faulty FaceID",
+            "Faulty fingerprint scanner",
+            "Faulty Home button",
+            "Faulty microphone",
+            "Faulty proximity sensor",
+            "Faulty SIM reader",
+            "Faulty software",
+            "Faulty speaker/loudspeaker",
+            "Faulty touchscreen",
+            "Faulty vibration",
+            "Faulty Wi-Fi",
+            "Heavy Cosmetic Wear",
+            "Heavy Cosmetic Wear (frame)",
+            "Heavy cosmetic wear (screen)",
+            "Heavy damage to device structure",
+            "Knox Warranty Void",
+            "Loose parts",
+            "Loose parts (backcover)",
+            "Loose parts (internal)",
+            "Loose parts (screen)",
+            "Minor Camera Fault",
+            "Minor Camera Fault (Back)",
+            "Minor Camera Fault (Front)",
+            "Minor Functional Damage",
+            "Minor Functional Damage (True Tone Not Available)",
+            "Minor LCD fault",
+            "Minor LCD Fault (discoloration)",
+            "Minor LCD Fault (Lines)",
+            "Minor LCD Fault (screenburn)",
+            "Minor LCD Fault (spots)",
+            "Minor physical damage",
+            "Minor physical damage (bent frame)",
+            "Minor physical damage (cosmetic details)",
+            "Minor physical damage (cracked button)",
+            "Minor physical damage (cracked/broken backcover)",
+            "Minor physical damage (cracked/broken camera)",
+            "Minor physical damage (cracked/broken front glass)",
+            "Minor physical damage (cracked/damaged frame)",
+            "Minor physical damage (engraving removed)",
+            "Missing Home Button",
+            "Missing LCD",
+            "Missing Parts",
+            "Missing parts (backcover)",
+            "Missing parts (battery)",
+            "Missing parts (battery+backcover)",
+            "Missing parts (cosmetic details)",
+            "Missing parts (SIM tray)",
+            "Missing parts (socket portcover)",
+            "Missing parts (stylus)",
+            "Network connection problems",
+            "Not charging (built-in battery)",
+            "Not charging (removable battery)",
+            "Not EU Region",
+            "Not Original Parts",
+            "Not turning on",
+            "Physical damage (bent frame)",
+            "Physical damage (broken port cover)",
+            "Physical damage (cosmetic details)",
+            "Physical damage (cracked/broken backcover)",
+            "Physical damage (cracked/broken camera)",
+            "Physical damage (cracked/broken front glass)",
+            "Physical damage (cracked/damaged frame)",
+            "Physical damage (front glass+ backcover)",
+            "Physically broken/damaged motherboard",
+            "Redeploy",
+            "Reduced battery performance",
+            "Restore/boot error (not turning on)",
+            "Severe LCD Fault",
+            "Severe LCD Fault (discoloration)",
+            "Severe LCD Fault (Lines)",
+            "Severe LCD Fault (screenburn)",
+            "Severe LCD Fault (spots)",
+            "Slightly loose parts",
+            "Slightly Loose Parts (Backcover)",
+            "Slightly loose parts (cosmetic details)",
+            "Slightly loose parts (screen)",
+            "Slightly swollen battery (Plasma)",
+            "Water indicators activated"
+        ],
+        "Additional Fault": [
+            "",
+            "Drilled PCB",
+            "Faulty FaceID",
+            "Faulty fingerprint scanner",
+            "Minor LCD Fault",
+            "Missing Home Button",
+            "Missing port cover",
+            "True tone not available",
+            "Water indicators activated",
+        ],
+        "Additional Info": [
+            "",
+            "Chip/Crack",
+            "Discoloration",
+            "Broken seal",
+            "Other",
+            "Engraving",
+            "Demo product",
+            "Scratched on purpose",
+            "Operator stock",
+            "Knox warranty void",
+            "Protective Case Included",
+            "Heavy cosmetic wear",
+            "Engraving Removed",
+            "New Box",
+            "Reduced Battery Performance",
+            "AS-IS",
+            "With Dock",
+            "True Tone Missing",
+            "Brand New Battery",
+            "NewLine Approved",
+            "TeqCycle Approved",
+            "Premium Refurbished"
+        ],
+        "Functionality": [
+            "",
+            "Working",
+            "Incomplete Working",
+            "Minor Fault",
+            "Grade D",
+            "Grade E",
+            "No Power",
+            "Scrap"
+        ],
+        "Appearance": [
+            "",
+            "Brand New",
+            "Swap",
+            "AS-IS",
+            "Grade A+",
+            "Grade A",
+            "Grade B",
+            "Grade C+",
+            "Grade C",
+            "Scrap",
+            "Motherboard only",
+            "Grade AB",
+            "Grade BC"
+        ],
+        "Boxed": [
+            "",
+            "Unboxed",
+            "With Pen",
+            "Premium Unboxed",
+            "Original Box",
+            "Incomplete Box",
+            "Damaged Box",
+            "UK Original Box",
+            "Aftermarket Box",
+            "Aftermarket UK box",
+        ],
+        "Network Lock": [
+            "",
+            "Unlocked",
+            "Not known network",
+        ],
+        "Cloud Lock":[
+            "",
+            "CloudOFF",
+            "Cloud Locked",
+            "MDM Lock",
+            "Knox Lock"
+        ],
+        "Battery status": [
+            "",
+            "Excellent",
+            "Brand New",
+            "Above 85%",
+            "95% and above",
+            "90%-94%",
+            "85%-89%",
+            "80%-84%",
+            "70% - 79%",
+            "Below 70%",
+            "Untested"
+
+        ],
+        "Software": [
+            "",
+            "Demo Soft",
+            "Passcode",
+            "Passcode+Demo Soft",
+            "Branding app",
+            "Custom Soft",
+            "Demo Soft+Branding app",
+            "Blacklisted",
+            "Welcome Logo",
+            "Demo+Welcome logo",
+            "Not genuine apple error",
+            "Teqcycle Failed",
+        ],
+        "Customized": [
+            "",
+            "Branding",
+            "Engraving",
+            "Facetime Missing",
+            "JP Spec",
+            "Newline Failed",
+            "Newline Visual Failed",
+            "No CE markings",
+            "Non-OEM battery",
+            "Non-OEM parts",
+            "Not EU region",
+            "Samsung Failed",
+            "Security Sticker marks",
+            "Sensitive engraving",
+            "US Spec"
+        ],
+    }
+
+    let fieldList = [
+        "Fault Description",
+        "Additional Fault",
+        "Additional Info",
+        "Functionality",
+        "Appearance",
+        "Boxed",
+        "Network Lock",
+        "Cloud Lock",
+        "Battery status",
+        "Software",
+        "Customized",
+    ]
+    let accState = false; //accordion open/close state
+    let cdwMapToggle = _G.getValue("var_cdwmap_master_toggle", true);
+    let commentPHC = ""
+    let cdwInfoMap = {}
+    let group
+    let fakeComment = _G.getValue("var_cdwmap_fake_comment", ""); //debugging
+    let canModify = true; //prevent observer triggering when were making changes to the form
+    async function waitOneFrame() {
+        return new Promise((resolve) => {
+            requestAnimationFrame(() => resolve());
+        });
+    }
+    async function changeValuePHC(item,mappedFields) {
+        console.log("########## CHANGE_VALUE_PHC ##########")
+        await waitOneFrame()
+        let s_target = item.field;
+        let force = item.force;
+        let s_src = faultList[item.field][item.fault];
+        let target_ele = null;
+        for (let [key, val] of Object.entries(document.querySelectorAll("app-searchable-dropdown-field"))) {
+            let label = val.getElementsByTagName("label")[0];
+            if (label.innerText.includes(s_target)){
+                target_ele = val;
+                break;
+            }
+        }
+        if (!target_ele) return false;
+        if (target_ele.querySelector("ng-select").classList.contains("ng-select-disabled")) return false; //dropdown disabled
+        if (!force && target_ele.getElementsByClassName("ng-value-icon").length > 0) return; //dropdown contains a value already
+        console.log("OK passed")
+        target_ele.getElementsByTagName("input")[0].value = s_src;
+        console.log("setting field value: ", s_src)
+        target_ele.getElementsByTagName("input")[0].dispatchEvent(new Event("input"));
+        console.log("dispatch input")
+        await waitOneFrame()
+        /*let resultList = faultList[item.field].filter(item => item.toLowerCase().includes(s_src.toLowerCase()))
+        console.log("possible results: ",resultList)
+        if (resultList.length > 1){
+            console.log("yield 1 frame")
+            
+        }*/
+
+        if (target_ele.getElementsByClassName("scrollable-content").length == 0) return false;
+        for (let [key2, val2] of Object.entries(target_ele.getElementsByClassName("scrollable-content")[0].children)) {
+            console.log("str_comp:", val2.innerText, "===", s_src, val2.innerText == s_src)
+            if (val2.innerText == s_src) {
+                console.log("click event")
+                val2.dispatchEvent(new Event("click"));
+                return true;
+            }
+        }
+        console.log("return last")
+        return false;
+    }
+
+    async function updateFields(){
+        commentPHC = ""
+        if (cdwMapToggle) {
+            let test2 = document.querySelector(".diagnostic-data__content > app-provider-data > app-generic-provider > div");
+            if (test2) {
+                Array.from(test2.children).forEach(cdwLine => {
+                    if (cdwLine.innerText.includes("Comment")) {
+                        commentPHC = cdwLine.children[1].innerText
+                    }
+                });
+            }
+            let finalComment = (commentPHC + " " + fakeComment).toLowerCase().split(" ");
+            let mappedFields = []; //list of fields we've already successfully applied values to, so we dont overwrite them
+            let sortable = []; //sort faults by their priority
+            for (var cdw in cdwInfoMap) {
+                sortable.push([cdw, cdwInfoMap[cdw]]);
+            }
+            sortable.sort(([,a],[,b]) =>
+                a.field.localeCompare(b.field) || b.prio - a.prio
+            )
+            for (var index in sortable) {
+                let val = sortable[index][1]
+                if (mappedFields[val.field] === undefined && val.enabled == true) {
+                    if (finalComment.includes(val.search.toLowerCase()) && (val.fault != 0)) {
+                        let response = await changeValuePHC(val,mappedFields);
+                        if (response == true) {
+                            mappedFields[val.field] = faultList[val.field][val.fault];
+                        }
+                    }
+                }
+            }
+        }
+        for (var indx in dimState) {
+            let val = dimState[indx]
+            if (val.value > 0) {
+                await changeValuePHC({field:val.field,fault:val.value},val.force);
+            }
+        }
+    }
+
+    const observerCallback = () => {
+        let injectLocation = document.querySelector(".order-info__header")?.parentElement.parentElement.parentElement
+        if (!injectLocation) return;
+        let lkpInstance = document.querySelector("#__LookupMain2");
+        if (!lkpInstance) {
+            injectLocation.append(fromHTML(modelLookupTemplate));
+            let accordionEle = document.querySelector("#_lkp_content_acc2");
+            accordionEle.style.height = accState ? "515px" : "0px";
+            let accordion = document.querySelector("#_lkp_content_acc_click2");
+            accordion.onclick = function() {
+                accState = !accState
+                accordionEle.style.height = accState ? "515px" : "0px";
+            }
+            let clearBtn = document.querySelector("#__mapper_clear_all");
+            clearBtn.onclick = function() {
+                for (let [key, val] of Object.entries(dimState)) {
+                    let dropdown = document.querySelector(key)
+                    let force = document.querySelector(key + "_force")
+                    dropdown.value = 0
+                    dimState[key].value = 0
+                    force.checked = false
+                    dimState[key].force = 0
+                }
+            }
+            let applyBtn = document.querySelector("#__mapper_apply");
+            applyBtn.onclick = function() {
+                updateFields();
+            }
+            //load cached values and eventlisteners back in after creating the dim mapper element
+            for (let [key, val] of Object.entries(dimState)) {
+                let dropdown = document.querySelector(key)
+                let force = document.querySelector(key + "_force")
+                for (let [key1, val1] of Object.entries(faultList[val.field])) {
+                    dropdown.add(new Option(val1,key1));
+                }
+                dropdown.value = val.value
+                force.checked = val.force
+                dropdown.onchange = function() {
+                    dimState[key].value = dropdown.value
+                }
+                force.onclick = function() {
+                    dimState[key].force = force.checked
+                }
+            }
+        }
+    }
+    const observerCallback2 = () => {
+        updateFields()
+    }
+    function fromHTML(html) {
+        html = html.trim();
+        if (!html) return;
+        const template = document.createElement("template");
+        template.innerHTML = html;
+        const result = template.content.children;
+        if (result.length === 1) {
+            return result[0];
+        }
+        return result;
+    }
+    let group2;
+    function addNewCDWMapping(idNum) {
+        cdwInfoMap["var_cdw_map_" + idNum] = {}
+        let _ID = _G.createSettingInput(group2, "", "","text", "var_cdw_map_" + idNum + "_1", function(){
+            cdwInfoMap["var_cdw_map_" + idNum].search = _G.getValue("var_cdw_map_" + idNum + "_1", "");
+        }, "display:inline-block; width:85px;",/[ ]+/gi)
+        let fault;
+
+        let field = _G.createSettingDropdown(group2, "Field", [{id: 0,name: "Fault Description"}, {id: 1,name: "Additional Fault"}, {id: 2,name: "Additional Info"}, {id: 3,name: "Functionality"}, {id: 4,name: "Appearance"}, {id: 5,name: "Boxed"}, {id: 6,name: "Network Lock"}, {id: 7,name: "Cloud Lock"}, {id: 8,name: "Battery status"}, {id: 9,name: "Software"}, {id: 10,name: "Customized"}], "var_cdw_map_" + idNum + "_2", function(){
+            cdwInfoMap["var_cdw_map_" + idNum].field = fieldList[_G.getValue("var_cdw_map_" + idNum + "_2", 0)];
+            let _field = fieldList[_G.getValue("var_cdw_map_" + idNum + "_2", 0)]
+            let _flt = fault.getElementsByTagName("select")[0]
+            //when changing field dropdown, make sure whe update fault dropdown
+            //remove all old options
+            for (var [key6, val6] of Object.entries(_flt.options)) {
+                val6.remove();
+            }
+            //add new ones
+            for (var [key5, val5] of Object.entries(faultList[_field])) {
+                _flt.add(new Option(val5,key5));
+            }
+            //reset values
+            _flt.value = 0;
+            cdwInfoMap["var_cdw_map_" + idNum].fault = "";
+            _flt.dispatchEvent(new Event("change"));
+
+        }, "display:inline-block; width:210px;")
+        let _field2 = fieldList[_G.getValue("var_cdw_map_" + idNum + "_2", 0)]
+        if (faultList[_field2]) {
+            let _options = [];
+            for (var [key5, val5] of Object.entries(faultList[_field2])) {
+                _options.push({id: key5,name: val5});
+            }
+            fault = _G.createSettingDropdown(group2, "Fault", _options, "var_cdw_map_" + idNum + "_3", function(){
+                cdwInfoMap["var_cdw_map_" + idNum].fault = _G.getValue("var_cdw_map_" + idNum + "_3", 0);
+            }, "display:inline-block; width:460px;")
+        }
+
+
+
+
+        let prio = _G.createSettingInput(group2, "Prio", "","number", "var_cdw_map_" + idNum + "_4", function(){
+            cdwInfoMap["var_cdw_map_" + idNum].prio = _G.getValue("var_cdw_map_" + idNum + "_4", 0);
+        }, "display:inline-block; width:105px;")
+        cdwInfoMap["var_cdw_map_" + idNum] = {
+            search: _G.getValue("var_cdw_map_" + idNum + "_1", ""),
+            field: fieldList[_G.getValue("var_cdw_map_" + idNum + "_2", 0)],
+            fault: _G.getValue("var_cdw_map_" + idNum + "_3", ""),
+            prio: _G.getValue("var_cdw_map_" + idNum + "_4", 0),
+            enabled: _G.getValue("var_cdw_map_" + idNum + "_5", false),
+            force: _G.getValue("var_cdw_map_" + idNum + "_6", false),
+        }
+
+        //toggle on/off state
+        var toggleBtn = _G.createSettingToggleButton(group2, "", "var_cdw_map_" + idNum + "_5", function() {
+            cdwInfoMap["var_cdw_map_" + idNum].enabled = _G.getValue("var_cdw_map_" + idNum + "_5", false);
+        }, true, "height:46.67px;top:-3px;")
+        var overwriteBtn = _G.createSettingToggleButton(group2, "Overwrite", "var_cdw_map_" + idNum + "_6", function() {
+            cdwInfoMap["var_cdw_map_" + idNum].force = _G.getValue("var_cdw_map_" + idNum + "_6", false);
+        }, true, "height:46.67px;top:-3px;")
+        let btn = _G.createSettingButton(group2, "Delete", function(){
+            //remove DOM elements
+            _ID.remove();
+            field.remove();
+            fault.remove();
+            prio.remove();
+            btn.remove();
+            overwriteBtn.remove();
+            toggleBtn.remove();
+            //remove from local storage
+            _G.deleteValue("var_cdw_map_" + idNum + "_1");
+            _G.deleteValue("var_cdw_map_" + idNum + "_2");
+            _G.deleteValue("var_cdw_map_" + idNum + "_3");
+            _G.deleteValue("var_cdw_map_" + idNum + "_4");
+            _G.deleteValue("var_cdw_map_" + idNum + "_5");
+            _G.deleteValue("var_cdw_map_" + idNum + "_6");
+            delete cdwInfoMap["var_cdw_map_" + idNum]
+        }, true, "height:46.67px;top:-3px;")
+        btn.classList.replace("btn-primary","btn-danger")
+    }
+
+
+
+
+
+
+    const mainUICreate = function() {
+        group = _G.createSettingsGroup("PHC Dimension Mapper")
+
+
+        _G.createSettingToggleButton(group, "PHC Comment Mapper", "var_cdwmap_master_toggle", function() {
+            cdwMapToggle = _G.getValue("var_cdwmap_master_toggle", true)
+        }, true)
+        _G.createSettingButton(group, "Add New Mapping", function() {
+            let idNum = _G.getValue("var_dim_mapper_gen_id", 0)
+            addNewCDWMapping(idNum)
+            _G.setValue("var_dim_mapper_gen_id", idNum + 1)
+        }, true, "")
+
+        group2 = _G.createSettingsSubGroup(group, "Rule List","overflow-y: scroll;max-height:500px;display:block")
+        let checkedMap = {}
+        let items = _G.DBgetValueAll()
+        items.forEach(hoverItem => {
+            if (hoverItem.includes("var_cdw_map_")) {
+                let varID = hoverItem.split("_")
+                let newVar = varID[0] + "_" + varID[3]
+                if (!checkedMap[newVar] && varID[3] !== undefined) {
+                    checkedMap[newVar] = true;
+                    addNewCDWMapping(varID[3])
+                }
+            }
+        });
+        _G.createSettingInput(group, "Fake Comment (For Debugging)", "","text", "var_cdwmap_fake_comment", function(){
+            fakeComment = _G.getValue("var_cdwmap_fake_comment", "");
+        }, "display:inline-block; width:1230px;")
+        _G.showToast({title: "TamperMonkey",message: "Dimension Automapper (RUBY) Loaded",messageType: "info"})
+    }
+    const menuStatusUpdate = () => {
+        _G.updateGroupState(group, "_idDimMapperUpdate")
+    }
+    _G.bind({onCreate: mainUICreate, search: "app-sidebar", id: "_idDimMapperCreateMenu", href: ["*"]})
+    _G.bind({onUpdate: menuStatusUpdate, search: "app-root", id: "_idDimMapperMenuStatus", href: ["*"]})
+    _G.bind({onUpdate: observerCallback, onCreate:observerCallback, search: "app-device-info-and-checks", id: "_idDimMapperUpdate", href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
+    _G.bind({onCreate:observerCallback2, search: "app-test-plan-form > form", id: "_idDimMapperUpdate2", href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
+})();
+
+
