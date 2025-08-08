@@ -1,0 +1,286 @@
+// ==UserScript==
+// @name         Model Lookup (RUBY)
+// @namespace    http://tampermonkey.net/
+// @version      1.0.0
+// @description  try to take over the world!
+// @author       You
+// @match        https://*.tech/*
+// @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
+// @grant              GM_getValue
+// @grant              GM_setValue
+// @grant              GM.getValue
+// @grant              GM.setValue
+// @grant GM.listValues
+// @grant GM_listValues
+// @grant GM.deleteValue
+// @grant GM_deleteValue
+// @grant GM_addStyle
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    const modelLookupTemplate = `
+<app-order-info-custom id="__LookupMain">
+   <div class="order-info" style="background: #fff;">
+      <div class="order-info__header border-bottom border-2 d-flex align-items-center justify-content-between" style="cursor: pointer;padding: 16px 24px;" id="_lkp_content_acc_click">
+         <h6 class="mb-0 fw-stronger">Model Lookup</h6>
+
+      </div>
+      <div class="order-info__content" style="transition: height 0.3s ease; height: 0px; display: block; overflow: hidden;" id="_lkp_content_acc">
+         <app-job-order-details>
+            <div class="panel-body" style="padding-bottom:0px;">
+               <div role="tabpanel" class="tab-pane active">
+                  <fieldset class="form-horizontal">
+                     <table class="table table-condensed">
+                        <tbody>
+                           <tr>
+                              <td>
+                                 <input autocomplete="off" class="form-control filterInput ng-pristine ng-untouched ng-valid ng-empty" style="max-width: 100%" ng-model-options="{ debounce: 300 }" id="_lkp_search" placeholder="Model Code">
+                              </td>
+                           </tr>
+                        </tbody>
+                     </table>
+                     <table class="table table-bordered table-condensed" style="position: relative;">
+                        <tbody style="display: block;transition: height 0.3s ease;  height: 225px; padding-left: 10px;padding-right: 10px; overflow: auto; " id="_lkp_tbody_content">
+                        </tbody>
+                     </table>
+                     <table class="table table-condensed">
+                        <tbody>
+                           <tr>
+                              <td style="max-width: 100%">
+                                 <input autocomplete="off" class="form-control filterInput ng-pristine ng-untouched ng-valid ng-empty" style="max-width: 100%" id="_lkp_entry_1" placeholder="Model Code">
+                              </td>
+                              <td style="max-width: 100%">
+                                 <input autocomplete="off" class="form-control filterInput ng-pristine ng-untouched ng-valid ng-empty" style="max-width: 100%" id="_lkp_entry_2" placeholder="Product Name">
+                              </td>
+                              <td style="width: 1px">
+                                 <button class="btn btn-secondary" type="button" id="_lkp_button_id">
+                                    <div class="d-flex align-items-center">
+                                       <div class="content" style="opacity: 1;"> ADD </div>
+                                    </div>
+                                 </button>
+                              </td>
+                           </tr>
+                        </tbody>
+                     </table>
+                  </fieldset>
+               </div>
+            </div>
+            <!----><!----><!----><!---->
+         </app-job-order-details>
+      </div>
+   </div>
+</app-order-info-custom>
+
+`
+    let _G = unsafeWindow.tmScripts;
+    let toggleInjectLocation = 0
+    let lastSearch = "";
+    let DBdata = [];
+    let accState = false;
+    let maxAccordionHeight = _G.getValue("var_model_lookup_window_height", 400)+"px";
+    let toggleLocation;
+    let group;
+    let isActive = false;
+    const observerCallback = (mutationList, observer) => {
+        let injectLocation = document.querySelector(".order-info__header");
+        if (!injectLocation) {
+            return;
+        }
+        toggleInjectLocation = _G.getValue("var_model_lookup_location", 0)
+        if (toggleInjectLocation == 0) {
+            injectLocation = document.querySelector(".order-info__header").parentElement.parentElement.parentElement
+        } else {
+            injectLocation = document.querySelector(".order-info__header").parentElement.parentElement.parentElement.parentElement.parentElement.children[0].children[0]
+        }
+
+        if (!injectLocation) return;
+        let lkpInstance = document.querySelector("#__LookupMain");
+        if (!lkpInstance) {
+            injectLocation.append(fromHTML(modelLookupTemplate));
+            let searchbar = document.querySelector("#_lkp_search");
+            let accordionEle = document.querySelector("#_lkp_content_acc");
+            searchbar.value = lastSearch
+            updateAccordionWindow();
+
+        }
+        let entry_1 = document.querySelector("#_lkp_entry_1");
+        let entry_2 = document.querySelector("#_lkp_entry_2");
+        let button_add = document.querySelector("#_lkp_button_id");
+        button_add.onclick = function() {
+            if (entry_1.value == "") {
+                updateEntryBtn();
+                return;
+            }
+            if (entry_2.value == "") {
+                if (DBdata[entry_1.value]) {
+                    GM.deleteValue(entry_1.value)
+                    syncDB()
+                    updateList()
+                    entry_1.value = "";
+                    entry_2.value = "";
+                    updateEntryBtn();
+                    updateList(searchbar.value);
+                    return;
+                }
+            }
+
+            DBdata[entry_1.value] = entry_2.value;
+            updateList()
+            const saveData = DBdata[entry_1.value]
+            GM.setValue([entry_1.value], entry_2.value);
+            entry_1.value = "";
+            entry_2.value = "";
+            updateEntryBtn();
+            updateList(searchbar.value);
+        }
+        let searchbar = document.querySelector("#_lkp_search");
+        searchbar.oninput = function() {
+            lastSearch = searchbar.value
+            updateList(searchbar.value)
+        }
+        toggleLocation = () => {
+            toggleInjectLocation = _G.getValue("var_model_lookup_location", 0)
+            document.querySelector("#__LookupMain").remove();
+            observerCallback();
+        }
+        entry_1.oninput = function() {
+            updateEntryBtn();
+        }
+        entry_2.oninput = function() {
+            updateEntryBtn();
+        }
+
+        let accordion = document.querySelector("#_lkp_content_acc_click");
+        let accordionEle = document.querySelector("#_lkp_content_acc");
+        accordion.onclick = function() {
+            accState = !accState
+            updateAccordionWindow();
+
+        }
+        updateList(searchbar.value);
+    };
+    function updateAccordionWindow(){
+        let accordionEle = document.querySelector("#_lkp_content_acc");
+        let tableCont = document.querySelector("#_lkp_tbody_content");
+        if (!accordionEle) return;
+        if (!tableCont) return;
+        let val = _G.getValue("var_model_lookup_window_height", 401)
+        maxAccordionHeight = (val + "px")
+        accordionEle.style.height = accState ? maxAccordionHeight : "0px";
+        tableCont.style.height = ((val - 160) + "px")
+    }
+    function updateEntryBtn(){
+        let entry_1 = document.querySelector("#_lkp_entry_1");
+        let entry_2 = document.querySelector("#_lkp_entry_2");
+        let button_add = document.querySelector("#_lkp_button_id");
+        if (entry_1.value != "" && !DBdata[entry_1.value] && entry_2.value != "") {
+            button_add.classList.replace("btn-danger", "btn-primary");
+            button_add.classList.replace("btn-secondary", "btn-primary");
+            button_add.innerText = "ADD";
+            return;
+
+        }
+        if (entry_1.value != "" && DBdata[entry_1.value] && entry_2.value != "") {
+            button_add.classList.replace("btn-danger", "btn-primary");
+            button_add.classList.replace("btn-secondary", "btn-primary");
+            button_add.innerText = "REPLACE";
+            return;
+        }
+        if (entry_1.value != "" && DBdata[entry_1.value] && entry_2.value == "") {
+            button_add.classList.replace("btn-primary", "btn-danger");
+            button_add.classList.replace("btn-secondary", "btn-danger");
+            button_add.innerText = "DELETE";
+            return;
+        }
+        button_add.classList.replace("btn-danger", "btn-secondary");
+        button_add.classList.replace("btn-primary", "btn-secondary");
+        button_add.innerText = "ADD";
+    }
+
+    function updateList(context) {
+        console.log("called list")
+        let contentbody = document.querySelector("#_lkp_tbody_content");
+        if (!contentbody) return;
+        let final_html = ""
+        for (const [key, value] of Object.entries(DBdata)) {
+                if (context && context != "") {
+                    let val = key.toLowerCase()
+                    for (const [key2, value2] of Object.entries(context.split(","))) {
+                        if (val.includes(value2.toLowerCase())) {
+                            final_html += (`<tr data-track='r-12' style='cursor: pointer; height:5px;'><td style='cursor: pointer; padding-top: 1px; padding-bottom: 1px;'>` + key + `</td><td style='width: 100%; padding-top: 1px; padding-bottom: 1px;'>` + value + `</td></tr>`)
+                        }
+                    }
+
+                } else {
+                    final_html += `<tr data-track="r-12" style="cursor: pointer; height:5px;" class="  " title=" "><td style="cursor: pointer; padding-top: 1px; padding-bottom: 1px;">` + key + `</td><td style="width: 100%; padding-top: 1px; padding-bottom: 1px;">` + value + `</td></tr>`
+                }
+            }
+        contentbody.innerHTML = final_html;
+            Array.from(document.querySelector("#_lkp_tbody_content").children).forEach(item => {
+                if (!item) return;
+                if (!item.children[1]) return;
+                let dt = item.children[1]
+                dt.onclick = function(e) {
+                    document.querySelector("#name").parentElement.parentElement.parentElement.dispatchEvent(new Event("mousedown"));
+                    document.querySelector("#name").value = dt.innerText;
+                    document.querySelector("#name").dispatchEvent(new Event("input"));
+                };
+            })
+    }
+
+
+
+
+    function syncDB() {
+        DBdata = [];
+        GM.listValues().then((response) => {
+            response.forEach(hoverItem => {
+                let item = GM_getValue(hoverItem);
+                DBdata[hoverItem] = [];
+                DBdata[hoverItem] = item;
+            });
+        });
+    }
+    function fromHTML(html) {
+        html = html.trim();
+        if (!html) {
+            return;
+        }
+        const template = document.createElement("template");
+        template.innerHTML = html;
+        const result = template.content.children;
+        if (result.length === 1) {
+            return result[0];
+        }
+        return result;
+    }
+
+
+
+
+    const mainUICreate = function() {
+        group = _G.createSettingsGroup("Model Lookup Settings")
+        _G.createSettingInput(group, "Max Window Height", "px","number", "var_model_lookup_window_height", function() {
+            updateAccordionWindow();
+        })
+        _G.createSettingDropdown(group, "Tool Location", [{id: 0,name: "Right"}, {id: 1,name: "Left"}], "var_model_lookup_location", function() {
+            toggleLocation();
+        })
+        _G.showToast({title: "TamperMonkey",message: "Model Lookup (RUBY) Loaded",messageType: "info"})
+    }
+    const menuStatusUpdate = () => {
+        _G.updateGroupState(group, "_idModelLookupUpdate")
+    }
+    _G.bind({onCreate: mainUICreate, search: "app-sidebar", id: "_idModelLookupCreateMenu", href: ["*"]})
+    _G.bind({onUpdate: menuStatusUpdate, search: "app-root", id: "_idModelLookupMenuStatus", href: ["*"]})
+
+    _G.bind({onUpdate: observerCallback, onCreate:observerCallback, search: "app-order-info", id: "_idModelLookupUpdate", href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
+
+    syncDB()
+})();
+
+
+
+
