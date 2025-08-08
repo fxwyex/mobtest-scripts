@@ -1,0 +1,529 @@
+// ==UserScript==
+// @name         Settings (RUBY)
+// @namespace    http://tampermonkey.net/
+// @version      1.0.0
+// @description  try to take over the world!
+// @author       You
+// @match        https://*.tech/*
+// @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
+// @grant              GM_getValue
+// @grant              GM_setValue
+// @grant              GM.getValue
+// @grant              GM.setValue
+// @grant GM.listValues
+// @grant GM_listValues
+// @grant GM.deleteValue
+// @grant GM_deleteValue
+// @grant GM_addStyle
+// ==/UserScript==
+
+
+(function() {
+    'use strict';
+    let _G = unsafeWindow;
+    unsafeWindow.tmScripts = {}
+unsafeWindow.tmScripts.sha256 = function sha256(ascii) {
+    function rightRotate(value, amount) {
+        return (value>>>amount) | (value<<(32 - amount));
+    };
+
+    var mathPow = Math.pow;
+    var maxWord = mathPow(2, 32);
+    var lengthProperty = 'length'
+    var i, j;
+    var result = ''
+    var words = [];
+    var asciiBitLength = ascii[lengthProperty]*8;
+    var hash = sha256.h = sha256.h || [];
+    var k = sha256.k = sha256.k || [];
+    var primeCounter = k[lengthProperty];
+    var isComposite = {};
+    for (var candidate = 2; primeCounter < 64; candidate++) {
+        if (!isComposite[candidate]) {
+            for (i = 0; i < 313; i += candidate) {
+                isComposite[i] = candidate;
+            }
+            hash[primeCounter] = (mathPow(candidate, .5)*maxWord)|0;
+            k[primeCounter++] = (mathPow(candidate, 1/3)*maxWord)|0;
+        }
+    }
+
+    ascii += '\x80'
+    while (ascii[lengthProperty]%64 - 56) ascii += '\x00'
+    for (i = 0; i < ascii[lengthProperty]; i++) {
+        j = ascii.charCodeAt(i);
+        if (j>>8) return;
+        words[i>>2] |= j << ((3 - i)%4)*8;
+    }
+    words[words[lengthProperty]] = ((asciiBitLength/maxWord)|0);
+    words[words[lengthProperty]] = (asciiBitLength)
+    for (j = 0; j < words[lengthProperty];) {
+        var w = words.slice(j, j += 16);
+        var oldHash = hash;
+        hash = hash.slice(0, 8);
+        for (i = 0; i < 64; i++) {
+            var i2 = i + j;
+            var w15 = w[i - 15], w2 = w[i - 2];
+            var a = hash[0], e = hash[4];
+            var temp1 = hash[7]
+                + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25))
+                + ((e&hash[5])^((~e)&hash[6]))
+                + k[i]
+                + (w[i] = (i < 16) ? w[i] : (
+                        w[i - 16]
+                        + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15>>>3))
+                        + w[i - 7]
+                        + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2>>>10))
+                    )|0
+                );
+            var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22))
+                + ((a&hash[1])^(a&hash[2])^(hash[1]&hash[2]));
+
+            hash = [(temp1 + temp2)|0].concat(hash);
+            hash[4] = (hash[4] + temp1)|0;
+        }
+        for (i = 0; i < 8; i++) {
+            hash[i] = (hash[i] + oldHash[i])|0;
+        }
+    }
+    for (i = 0; i < 8; i++) {
+        for (j = 3; j + 1; j--) {
+            var b = (hash[i]>>(j*8))&255;
+            result += ((b < 16) ? 0 : '') + b.toString(16);
+        }
+    }
+    return result;
+};
+unsafeWindow.tmScripts.genFaultMap = function(jsonData) {
+    let finalMap = {}
+    let parsedJson = JSON.parse(jsonData)
+    let unwantedFields = ["Color","Manual Datawipe", "Certified Datawipe","CDD Appearance","CDD Fault"]
+    for (var [key1, val1] of Object.entries(parsedJson.dataPoints)) {
+        if (!unwantedFields.includes(val1.name)){
+            finalMap[val1.name] = []
+            finalMap[val1.name].push("")
+            for (var [key2, val2] of Object.entries(val1.options)) {
+                finalMap[val1.name].push(val2.name)
+            }
+        }
+    }
+    console.log(JSON.stringify(finalMap))
+    return finalMap;
+}
+function toastString(header = "###_UNDEFINED_###", body = "###_UNDEFINED_###", mType = "error") {
+    return `
+      <ngb-toast _ngcontent-ng-c2138875062="" role="alert" aria-atomic="true" class="toast toast-${mType} show" aria-live="polite">
+          <div class="toast-body">
+              <div class="ngb-toast-content">
+                  <div _ngcontent-ng-c2138875062="" class="ngb-toast-content__header">
+                      <h6 class="fw-stronger mb-0">${header}</h6><button type="button" aria-label="Close" class="btn-close" id="__toastButton"></button>
+                  </div>
+                  <p class="mb-0">${body}</p>
+              </div>
+          </div>
+      </ngb-toast>`
+}
+
+unsafeWindow.tmScripts.showToast = function({title = "",message = "",messageType = 0,time = 8} = {}) {
+    let toastList = _E(".toasts-global__list")
+    let toastResult = toastString(title, message, messageType)
+    let appendedChild = toastList.appendChild(fromHTML(toastResult))
+    let closeBtn = _E("#__toastButton",appendedChild)
+    closeBtn.onclick = function() {
+        appendedChild.remove()
+    }
+    setTimeout(() => {
+        appendedChild.remove()
+    }, time*1000);
+}
+let settingsPanel
+
+function createSettingsMain() {
+    let settingsContainer = `
+<ngb-modal-window tabindex="-1" aria-modal="true" role="dialog" class="modal fade hide" id="__rootSettings">
+    <div role="document" class="modal-dialog modal-lg" style="max-width:1300px; width:1300px;">
+        <div class="modal-content">
+            <app-add-favourite-item-modal>
+                <div class="add-favourite-menu-modal">
+                    <div class="modal-header">
+                        <h5 class="mb-0 fw-stronger">Script Settings</h5><button type="button" aria-label="Close" class="btn-close" id="__settingClose"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form novalidate="" class="d-flex flex-column gap-3 ng-untouched ng-pristine ng-invalid" onSubmit="return false;" id="__formList">
+                        </form>
+                    </div>
+                </div>
+            </app-add-favourite-item-modal>
+        </div>
+    </div>
+</ngb-modal-window>
+    `
+    if (settingsPanel) return;
+    settingsPanel = _E("body").appendChild(fromHTML(settingsContainer));
+
+}
+
+unsafeWindow.tmScripts.createSettingsGroup = function(header = "") {
+    let groupTemplate = `
+                     <div class="modal-content modal-body">
+                        <form novalidate="" class="d-flex flex-column gap-3 ng-untouched ng-pristine ng-invalid" onSubmit="return false;">
+<app-form-field>
+        	<div class="form-field" id="__formContent">
+            	<div class="mb-2"><label class="col-form-label fw-stronger" for="label" style="padding:0px;"><h2> ${header}<span style="color:green; padding-left:16px; font-size:16px;" id="_activeGroupHeader">Active</span></h2>
+                	</label>
+                </div>
+            </div>
+        </app-form-field>
+                        </form>
+                    </div>
+    	`
+    let group = _E("#__formList",settingsPanel).appendChild(fromHTML(groupTemplate));
+    return group
+}
+unsafeWindow.tmScripts.createSettingsSubGroup = function(group, header = "", styleE = "") {
+    if (!group) return;
+    let groupTemplate = `
+                     <div class="modal-content modal-body">
+                        <form novalidate="" class="d-flex flex-column gap-3 ng-untouched ng-pristine ng-invalid" onSubmit="return false;">
+<app-form-field>
+        	<div class="form-field" id="__formContent" style = "` + styleE +`">
+            </div>
+        </app-form-field>
+                        </form>
+                    </div>
+    	`
+    let inputEle = _E("#__formContent",group).appendChild(fromHTML(groupTemplate));
+    return inputEle
+}
+
+unsafeWindow.tmScripts.createSettingInput = function(group, body = "", vType = "", iType = "text", varID, clbk, styleE = "",pattern=null) {
+    if (!group) return;
+    if (!varID) return;
+
+    let realVal = DBgetValue(varID,(iType == "text") ? "" : 0)
+    let inputTemplate = `
+        <div class="content" style = "` + styleE +`">
+        	<div class="input-group">` + (body == "" ? "" : `<span class="input-group-text">${body}</span>`) + `<input type="${iType}" class="form-control ng-untouched ng-pristine ng-valid">` + (vType == "" ? "" : `<span class="input-group-text">${vType}</span></div>`) + `
+        </div>`
+    let inputEle = _E("#__formContent",group).appendChild(fromHTML(inputTemplate));
+    //if (!inline) inputEle.style.display = "inline-block";
+    let actualInput = inputEle.getElementsByTagName("input")[0]
+    actualInput.value = realVal
+    actualInput.addEventListener('input',function(e){
+        if (!pattern) return;
+        let badValues = pattern; //remove spaces
+        actualInput.value = actualInput.value.replace(badValues, '');
+    });
+    actualInput.addEventListener('change',function(e){
+        DBsetValue(varID, actualInput.value)
+        if (clbk) clbk();
+    });
+    return inputEle;
+}
+
+unsafeWindow.tmScripts.createSettingDropdown = function(group, header = "", body = [], varID, clbk, styleE = "") {
+    if (!group) return;
+    if (!varID) return;
+    let realVal = DBgetValue(varID, 0);
+    function optionTemplate() {
+        let finalText = "";
+        for (let i = 0; i < body.length; i++) {
+            let item = body[i]
+            finalText += '<option ' + ((realVal == item.id) ? 'selected="selected"' : "") + 'value="' + item.id + '">' + item.name + '</option>'
+        }
+        return finalText
+    }
+    let inputTemplate = `
+    	<div class="content" style = "` + styleE +`">
+    		<div class="input-group">` + (header == "" ? "" : `<span class="input-group-text">${header}</span>`) + `
+       	 		<select class="form-control">
+            		${optionTemplate()}
+           		</select>
+        	</div>
+    	</div>`
+    let inputEle = _E("#__formContent",group).appendChild(fromHTML(inputTemplate));
+    let actualInput = inputEle.getElementsByTagName("select")[0]
+    actualInput.addEventListener('change',function(e){
+        DBsetValue(varID, actualInput.value)
+        if (clbk) clbk();
+    });
+    return inputEle;
+}
+unsafeWindow.tmScripts.createSettingButton = function(group, header = "", clbk, inline = false, styleE = "") {
+    if (!group) return;
+
+    let inputTemplate = `<button type="button" class="btn btn-primary" style = "` + styleE +`">${header}</button>`
+    let button = _E("#__formContent",group).appendChild(fromHTML(inputTemplate));
+    if (!inline) button.style.display = "block";
+    button.onclick = function() {
+        if (clbk) clbk();
+    }
+    return button;
+}
+
+unsafeWindow.tmScripts.createSettingToggleButton = function(group, header = "", varID, clbk, inline = false, styleE = "") {
+    if (!group) return;
+    if (!varID) return;
+
+
+    let inputTemplate = `<button type="button" class="btn btn-primary" style = "` + styleE +`">${header}</button>`
+    let button = _E("#__formContent",group).appendChild(fromHTML(inputTemplate));
+    if (!inline) button.style.display = "block";
+    function updateBtnVisuals() {
+        let realVal = DBgetValue(varID, false);
+        button.classList.replace(realVal ? "btn-secondary" : "btn-primary", realVal ? "btn-primary" : "btn-secondary")
+        if (header == "") {
+            button.innerText = (realVal ? "Enabled" : "Disabled")
+        } else {
+            button.innerText = header + (realVal ? " : ON" : " : OFF")
+        }
+
+    }
+    updateBtnVisuals();
+    button.onclick = function() {
+        DBsetValue(varID, !DBgetValue(varID, false));
+        updateBtnVisuals();
+        if (clbk) clbk();
+    }
+    return button;
+}
+unsafeWindow.tmScripts.updateGroupState = function(group,id) {
+    if (!group) return;
+    let hookObj = unsafeWindow.tmScripts._hooks()[id]
+    let isActive = hookObj.canCall()
+    let activeTxt = group.querySelector("#_activeGroupHeader")
+    activeTxt.style.color = isActive ? "green" : "red"
+    activeTxt.innerText = isActive ? "Active" : "Inactive"
+    //activeTxt.title = "Script runs on following links:\n" + hookObj.href.join("\n")
+}
+
+let settingsBackdrop = `<ngb-modal-backdrop style="z-index: 1055;opacity:0.35;" aria-hidden="true" class="fade hide"id="__rootBackdrop"></ngb-modal-backdrop>`
+let settingsButton = `
+    <app-main-menu-item _ngcontent-ng-c3980915389 _nghost-ng-c2920093653>
+    	<button _ngcontent-ng-c2920093653 type="button" class="btn text-start" tabindex="0" id="__settingsID", style="width:100%">
+        	<div class="d-flex justify-content-start align-items-center">
+            	<div style="flex-shrink: 0;height: 24px;width: 24px;" class="icon-container"><i class="fa-lg fa-light fa-code"></i></div>
+            	<h6 style="margin-left: 12px;" class="mb-0 flex-grow-1 btn__label">Script Settings</h6>
+        	</div>
+    	</button>
+	</app-main-menu-item>`
+
+function DBgetValue(key, defValue = null) {
+    let val = GM_getValue(key);
+    if (val === undefined) {
+        GM_setValue(key, defValue)
+        return defValue;
+    }
+    return val;
+}
+unsafeWindow.tmScripts.DBgetValueAll = function() {
+    return GM_listValues()
+}
+function DBsetValue(key, value) {
+    GM_setValue(key, value);
+    if (DBgetValue("var_settings_log_setvalue", false) == false) return;
+    unsafeWindow.tmScripts.showToast({title: "Settings (GM_setValue)",message: (key + " = " + value),messageType: "info"})
+}
+unsafeWindow.tmScripts.setValue = function(key,defValue) {
+    if(!defValue) return;
+    GM_setValue(key, defValue);
+}
+unsafeWindow.tmScripts.getValue = function(key,defValue = null) {
+    let val = GM_getValue(key);
+    if (val === undefined) {
+        GM_setValue(key, defValue)
+        return defValue;
+    }
+    return val;
+}
+unsafeWindow.tmScripts.deleteValue = function(key) {
+    if (!key) return;
+    GM_deleteValue(key)
+}
+const _updateSideBar = () => {
+    if (!_E("#__settingsID")) {
+        let targetNode = _E("app-main-menu-item").parentElement;
+        targetNode.append(fromHTML(settingsButton));
+
+
+
+        _E("body").append(fromHTML(settingsBackdrop));
+        createSettingsMain();
+
+        let btn = _E("#__settingsID");
+        let state = false;
+        let settingsClose = _E("#__settingClose");
+        let settingsBackd = _E("#__rootBackdrop");
+
+        let outsideClick = _E("#__rootSettings");
+        let targetDown = "";
+        outsideClick.onmousedown = function(e) {
+            targetDown = e.target.id;
+        }
+        outsideClick.onmouseup = function(e) {
+            let target = e.target.id;
+            if (target == "__rootSettings" && target == targetDown) {
+                toggleModal(false);
+            }
+        }
+
+        function toggleModal(forceState) {
+            (!forceState) ? state = !state : state = forceState
+            if (state) {
+                settingsPanel.classList.add("d-block")
+                settingsBackd.classList.add("modal-backdrop")
+
+                setTimeout(() => {
+                    settingsPanel.classList.replace("hide", "show");
+                    settingsBackd.classList.replace("hide", "show");
+                }, 50);//applying/removing display block on the same frame will skip the fade in animation
+            }
+            if (state == false) {
+                settingsPanel.classList.replace("show", "hide");
+                settingsBackd.classList.replace("show", "hide");
+                setTimeout(() => {
+                    settingsPanel.classList.remove("d-block")
+                    settingsBackd.classList.remove("modal-backdrop")
+                }, 150);
+            }
+        }
+        btn.onclick = function() {
+            toggleModal();
+        }
+        settingsClose.onclick = function() {
+            toggleModal();
+        }
+    };
+};
+
+function _E(ele, p = document) {
+    return p.querySelector(ele)
+}
+function fromHTML(html) {
+    html = html.trim();
+    if (!html) return;
+    const template = document.createElement("template");
+    template.innerHTML = html;
+    const result = template.content.children;
+    if (result.length === 1) {
+        return result[0];
+    }
+    return result;
+}
+
+
+
+    class AutoObserver {
+        hooks = [];
+        constructor() {}
+        debugger = true;
+        bind(data) {
+            if (this.hooks[data.id]) {
+                return
+            }
+            let _inst = new HookInstance(data)
+            this.hooks[data.id] = _inst
+            return _inst;
+        }
+        unbind(id) {
+            if (this.hooks[id]) {
+                this.hooks[id].observer?.disconnect();
+                delete this.hooks[id]
+            }
+        }
+        getHookInstance(id){
+            if (this.hooks[id]) {
+                return this.hooks[id];
+            }
+            return null;
+        }
+        rebindHooks(){
+            for (var index in this.hooks) {
+                this.hooks[index].tryAttachObserver();
+            }
+        }
+        setHookState(id,state = false) {
+            if (this.hooks[id]) {
+                this.hooks[id].enabled = state;
+            }
+        }
+
+    }
+    class HookInstance {
+        id = "";
+        enabled = true
+        correctHref = false
+
+        callConfig = {attributes: false,childList: true,subtree: true}
+        observer = null;
+        wascalled = false;
+        element = null;
+        search = null;
+        href = null;
+        onUpdate = null;
+        onCreate = null;
+        canCall = () => (this.enabled == true && this.correctHref == true)
+
+        constructor({onUpdate, onCreate, search, id, callConfig = this.callConfig, href = []} = {}) {
+            this.id = id;
+            this.callConfig = callConfig;
+            this.onCreate = onCreate;
+            this.search = search;
+            this.element = document?.querySelector(search)
+            this.href = href
+
+            this.updateLocationState();
+            if (onUpdate) {
+                this.onUpdate = () => {
+                    if (this.canCall() && this.wascalled == false) {
+                        this.wascalled = true;
+                        onUpdate();
+                        this.wascalled = false;
+                    }
+                }
+                this.observer = new MutationObserver(this.onUpdate);
+            }
+            if (this.element && this.canCall()){
+                this.observer?.observe(this.element, this.callConfig);
+                if (onCreate) {
+                    onCreate();
+                }
+            }
+
+        }
+        updateLocationState() {
+            this.correctHref = false;
+            if (this.href.includes(_G.tmScripts.sha256(window.location.href.split("?")[0].toString())) || this.href.includes("*")) {
+                this.correctHref = true;
+            }
+        }
+        tryAttachObserver(){
+            this.updateLocationState();
+            if (!this.canCall()) return;
+            if ((this.element == null) || (!document.body.contains(this.element))) {
+                this.observer?.disconnect();
+                this.element = document?.querySelector(this.search)
+                if (!this.element) return;
+                this.observer?.observe(this.element,this.callConfig);
+                if (this.onCreate) this.onCreate();
+            }
+        }
+    }
+
+
+
+
+
+    let _autoObserver = new AutoObserver();
+    let lastLocation = ""
+    const mainLoop = function() {
+        _autoObserver.rebindHooks();
+    }
+
+    _G.tmScripts.bind = (data) => _autoObserver.bind(data);
+    _G.tmScripts.unbind = (data) => _autoObserver.unbind(data);
+    _G.tmScripts._hooks = () => {return _autoObserver.hooks};
+
+    _autoObserver.bind({onUpdate: mainLoop, search: "app-root", id: "_idMainLoop", href: ["*"]})
+    _autoObserver.bind({onCreate:_updateSideBar, search: "app-sidebar", id: "_idSidebar", href: ["*"]})
+})();
