@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Model Lookup (RUBY)
 // @namespace    http://tampermonkey.net/
-// @version      1.0.1
+// @version      1.0.2
 // @description  try to take over the world!
 // @author       You
 // @match        https://*.tech/*
@@ -26,7 +26,7 @@
 <app-order-info-custom id="__LookupMain">
    <div class="order-info" style="background: #fff;">
       <div class="order-info__header border-bottom border-2 d-flex align-items-center justify-content-between" style="cursor: pointer;padding: 16px 24px;" id="_lkp_content_acc_click">
-         <h6 class="mb-0 fw-stronger">Model Lookup</h6>
+         <h6 class="mb-0 fw-stronger">Model Lookup Test</h6>
 
       </div>
       <div class="order-info__content" style="transition: height 0.3s ease; height: 0px; display: block; overflow: hidden;" id="_lkp_content_acc">
