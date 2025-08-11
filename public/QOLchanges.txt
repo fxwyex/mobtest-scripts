@@ -1,0 +1,86 @@
+// ==UserScript==
+// @name         QOL changes (RUBY)
+// @namespace    http://tampermonkey.net/
+// @version      1.0.0
+// @description  try to take over the world!
+// @author       You
+// @include      /^https:\/\/r.*a.*tech\/?/
+// @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
+// @grant              GM_getValue
+// @grant              GM_setValue
+// @grant              GM.getValue
+// @grant              GM.setValue
+// @grant GM.listValues
+// @grant GM_listValues
+// @grant GM.deleteValue
+// @grant GM_deleteValue
+// @grant GM_addStyle
+// ==/UserScript==
+
+(function() {
+    'use strict';
+    let _G = unsafeWindow.tmScripts;
+    let reducedGaps = _G.getValue("var_qol_reduced_gaps", true)
+    let gapSize = (_G.getValue("var_gap_size_px", 1) + "px")
+    let loaded = false;
+    let focused = null;
+    let isActive = false;
+    const textboxSelector = '#itemIdentifier';
+    function applyGaps(gSize) {
+        console.log("wassss")
+        let ele0 = document.querySelector(".device-info-card__content");
+        let ele1 = document.querySelector(".job-order-details");
+        let ele2 = document.querySelector(".diagnostic-data__content");
+        let ele3 = document.querySelector(".cdw-results__content");
+        let ele4 = document.querySelector(".retested-data__content");
+        if (ele0) {
+            document.querySelectorAll("form").forEach((index) => {
+                index.style.gap = gSize;
+            });
+        }
+        ele1 ? (ele1.style.gap = gSize) : false;
+        ele2 ? (ele2.style.gap = gSize) : false;
+        ele3 ? (ele3.style.gap = gSize) : false;
+        ele4 ? (ele4.style.gap = gSize) : false;
+    }
+
+
+
+    const mainLoop = function() {
+        let test2 = document.querySelector(".diagnostic-data__content");
+        if (reducedGaps == true) {
+            applyGaps(gapSize);
+        }
+    }
+    let group;
+    const mainUICreate = function() {
+        const targetNode = document.querySelector(".layout__main");
+        group = _G.createSettingsGroup("QOL Settings")
+        _G.createSettingToggleButton(group, "Reduced Gaps", "var_qol_reduced_gaps", function() {
+            reducedGaps = _G.getValue("var_qol_reduced_gaps", true)
+            if (reducedGaps == false) {
+                applyGaps("16px");
+            }
+            if (reducedGaps == true) {
+                applyGaps(gapSize);
+            }
+        }, true)
+        _G.createSettingInput(group, "Gap Size", "px","number", "var_gap_size_px", function() {
+            gapSize = (_G.getValue("var_gap_size_px", 1) + "px")
+            if (reducedGaps == true) {
+                applyGaps(gapSize);
+            }
+        })
+        _G.showToast({title: "TamperMonkey",message: "QOL Stuff (RUBY) Loaded",messageType: "info"})
+    }
+    const menuStatusUpdate = () => {
+        _G.updateGroupState(group, "_idQOLUpdate")
+    }
+    _G.bind({onCreate: mainUICreate, search: "app-sidebar", id: "_idQOLCreateMenu", href: ["*"]})
+    _G.bind({onUpdate: menuStatusUpdate, search: "app-root", id: "_idQOLMenuStatus", href: ["*"]})
+    _G.bind({onUpdate: mainLoop, search: ".layout__main", id: "_idQOLUpdate", href: ["*"]})
+})();
+
+
+
+
