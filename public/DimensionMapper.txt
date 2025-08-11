@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dimension automapper (RUBY)
 // @namespace    http://tampermonkey.net/
-// @version      1.0.2
+// @version      1.0.3
 // @description  try to take over the world!
 // @updateURL    https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/DimensionMapper.txt
 // @downloadURL  https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/DimensionMapper.txt
@@ -417,13 +417,6 @@
         target_ele.getElementsByTagName("input")[0].dispatchEvent(new Event("input"));
         console.log("dispatch input")
         await waitOneFrame()
-        /*let resultList = faultList[item.field].filter(item => item.toLowerCase().includes(s_src.toLowerCase()))
-        console.log("possible results: ",resultList)
-        if (resultList.length > 1){
-            console.log("yield 1 frame")
-            
-        }*/
-
         if (target_ele.getElementsByClassName("scrollable-content").length == 0) return false;
         for (let [key2, val2] of Object.entries(target_ele.getElementsByClassName("scrollable-content")[0].children)) {
             console.log("str_comp:", val2.innerText, "===", s_src, val2.innerText == s_src)
@@ -444,13 +437,13 @@
             if (test2) {
                 Array.from(test2.children).forEach(cdwLine => {
                     if (cdwLine.innerText.includes("Comment")) {
-                        commentPHC = cdwLine.children[1].innerText
+                        commentPHC = cdwLine.children[0].children[1].innerText
                     }
                 });
             }
             let finalComment = (commentPHC + " " + fakeComment).toLowerCase().split(" ");
-            let mappedFields = []; //list of fields we've already successfully applied values to, so we dont overwrite them
-            let sortable = []; //sort faults by their priority
+            let mappedFields = [];
+            let sortable = [];
             for (var cdw in cdwInfoMap) {
                 sortable.push([cdw, cdwInfoMap[cdw]]);
             }
