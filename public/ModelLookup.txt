@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Model Lookup (RUBY)
 // @namespace    http://tampermonkey.net/
-// @version      1.0.5
+// @version      1.0.6
 // @description  try to take over the world!
 // @author       You
 // @include      /^https:\/\/r.*a.*tech\/?/
@@ -294,6 +294,7 @@
             if (response.length == 0) {
                 for (const [key, value] of Object.entries(defaultValues)) {
                     GM.setValue([key], value);
+                    DBdata[key] = value;
                 }
             }
         });
