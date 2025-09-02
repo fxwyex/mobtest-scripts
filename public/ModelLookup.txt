@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Model Lookup (RUBY)
 // @namespace    http://tampermonkey.net/
-// @version      1.0.4
+// @version      1.0.5
 // @description  try to take over the world!
 // @author       You
 // @include      /^https:\/\/r.*a.*tech\/?/
@@ -232,11 +232,71 @@
             })
     }
 
-
+    let defaultValues = {
+    "21081111RG": "Xiaomi 11T",
+    "2201116SG": "Xiaomi Redmi Note 11 Pro 5G",
+    "23053RN02Y": "Xiaomi Redmi 12",
+    "23108RN04Y": "Xiaomi Redmi 13C",
+    "23124RA7EO": "Xiaomi Redmi Note 13 4G",
+    "A1395": "Apple iPad 2",
+    "A1432": "Apple iPad mini",
+    "A1460": "Apple iPad 4 (Retina Display)",
+    "A1474": "Apple iPad Air",
+    "A1475": "Apple iPad Air",
+    "A1489": "Apple iPad mini 2",
+    "A1538": "Apple iPad mini 4",
+    "A1566": "Apple iPad Air 2",
+    "A1584": "Apple iPad Pro 12.9\" (2015)",
+    "A1600": "Apple iPad mini 3",
+    "A1823": "Apple iPad 9.7 (2017)",
+    "A1893": "Apple iPad 9.7\" (2018)",
+    "A1980": "Apple iPad Pro 11\" (2018)",
+    "A2152": "Apple iPad Air (2019)",
+    "A2197": "Apple iPad 10.2\" (2019)",
+    "A2270": "Apple iPad 10.2\" (2020)",
+    "A2316": "Apple iPad Air (2020)",
+    "A2378": "Apple iPad Pro 12.9\" (2021)",
+    "A2429": "Apple iPad 10.2 (2020)",
+    "A2436": "Apple iPad Pro 12.9\" (2022)",
+    "A2567": "Apple iPad mini 6",
+    "A2568": "Apple iPad mini 6",
+    "A2589": "Apple iPad Air (2022)",
+    "A2602": "Apple iPad 10.2\" (2021)",
+    "A2606": "Apple iPad 10.2\" (2021)  ---  SILVER = BLACK FRONT",
+    "A2696": "Apple iPad 10.9\" (2022)",
+    "A2757": "Apple iPad 10.9\" (2022)",
+    "A2759": "Apple iPad Pro 11\" (2022)",
+    "A2761": "Apple iPad Pro 11\" (2022) ",
+    "A2836": "Apple iPad Pro 11\" (2024)",
+    "A2902": "Apple iPad Air 11\" (2024)",
+    "AGS2-W09": "Huawei MediaPad T5",
+    "BAH2-W19": "Huawei MediaPad M5 lite 10.1\"",
+    "CPH2065": "Oppo Reno4 Z 5G",
+    "CPH2529": "Oppo A98",
+    "CPH2631": "Oppo A60",
+    "GEM-701L": "Huawei MediaPad X2 7\"",
+    "LIO-L29": "Huawei Mate 30 Pro",
+    "M2101K6G": "Xiaomi Redmi Note 10 Pro ",
+    "RMX3630": "Realme 10",
+    "TA-1397": "Nokia T20",
+    "TB-X306X": "Lenovo Tab M10 HD (2nd Gen)",
+    "TB-X606XA": "Tab M10 FHD Plus (2nd gen)",
+    "a1822": "Apple iPad 9.7\" (2017)",
+    "a2133": "Apple iPad mini 5",
+    "m2010J19SY": "Xiaomi Redmi 9T",
+    "v2337": "VIVO V40SE 5G"
+}
 
 
     function syncDB() {
         DBdata = [];
+        GM.listValues().then((response) => {
+            if (response.length == 0) {
+                for (const [key, value] of Object.entries(defaultValues)) {
+                    GM.setValue([key], value);
+                }
+            }
+        });
         GM.listValues().then((response) => {
             response.forEach(hoverItem => {
                 let item = GM_getValue(hoverItem);
