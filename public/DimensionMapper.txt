@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dimension automapper (RUBY)
 // @namespace    http://tampermonkey.net/
-// @version      1.0.4
+// @version      1.1.0
 // @description  try to take over the world!
 // @updateURL    https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/DimensionMapper.txt
 // @downloadURL  https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/DimensionMapper.txt
@@ -384,6 +384,7 @@
     ]
     let accState = false; //accordion open/close state
     let cdwMapToggle = _G.getValue("var_cdwmap_master_toggle", true);
+    let autofillCommentsToggle = _G.getValue("var_autofill_comments_toggle", false)
     let commentPHC = ""
     let cdwInfoMap = {}
     let group
@@ -395,7 +396,9 @@
         });
     }
     async function changeValuePHC(item,mappedFields) {
-        console.log("########## CHANGE_VALUE_PHC ##########")
+        //console.log("########## CHANGE_VALUE_PHC ##########")
+        //TODO: the form appears but the contents of it have not, we're too fast, find a better hook point (observerCallback2)
+        await waitOneFrame()
         await waitOneFrame()
         let s_target = item.field;
         let force = item.force;
@@ -403,33 +406,44 @@
         let target_ele = null;
         for (let [key, val] of Object.entries(document.querySelectorAll("app-searchable-dropdown-field"))) {
             let label = val.getElementsByTagName("label")[0];
+            //console.log("finding ele",label.innerText,s_target)
             if (label.innerText.includes(s_target)){
                 target_ele = val;
                 break;
             }
         }
-        if (!target_ele) return false;
-        if (target_ele.querySelector("ng-select").classList.contains("ng-select-disabled")) return false; //dropdown disabled
-        if (!force && target_ele.getElementsByClassName("ng-value-icon").length > 0) return; //dropdown contains a value already
-        console.log("OK passed")
+        //console.log("checking")
+        if (!target_ele) {
+            //console.log("target ele not found",s_target)
+            return false
+        };
+        if (target_ele.querySelector("ng-select").classList.contains("ng-select-disabled")) {
+            //console.log("ng-select is disabled")
+            return false
+        };
+        if (!force && target_ele.getElementsByClassName("ng-value-icon").length > 0) {
+            //console.log("already contains value")
+            return
+        };
+        //console.log("OK passed")
         target_ele.getElementsByTagName("input")[0].value = s_src;
-        console.log("setting field value: ", s_src)
+        //console.log("setting field value: ", s_src)
         target_ele.getElementsByTagName("input")[0].dispatchEvent(new Event("input"));
-        console.log("dispatch input")
-        await waitOneFrame()
+        //console.log("dispatch input")
+        await waitOneFrame()//DONT REMOVE!!!
         if (target_ele.getElementsByClassName("scrollable-content").length == 0) return false;
         for (let [key2, val2] of Object.entries(target_ele.getElementsByClassName("scrollable-content")[0].children)) {
-            console.log("str_comp:", val2.innerText, "===", s_src, val2.innerText == s_src)
+            //console.log("str_comp:", val2.innerText, "===", s_src, val2.innerText == s_src)
             if (val2.innerText == s_src) {
-                console.log("click event")
+                //console.log("click event")
                 val2.dispatchEvent(new Event("click"));
                 return true;
             }
         }
-        console.log("return last")
+        //console.log("return last")
         return false;
     }
-
+    let currentActiveObject
     async function updateFields(){
         commentPHC = ""
         if (cdwMapToggle) {
@@ -441,7 +455,8 @@
                     }
                 });
             }
-            let finalComment = (commentPHC + " " + fakeComment).toLowerCase().split(" ");
+            let commentQueue = (autofillCommentsToggle == true && currentActiveObject) ? currentActiveObject.comment : ""
+            let finalComment = (commentPHC + " " + commentQueue + " " + fakeComment).toLowerCase().split(" ") ;
             let mappedFields = [];
             let sortable = [];
             for (var cdw in cdwInfoMap) {
@@ -516,8 +531,30 @@
             }
         }
     }
-    const observerCallback2 = () => {
-        updateFields()
+    let observerCallback2 = async function(){
+        await updateFields()
+        //document.querySelector('#name').focus()
+        setTimeout(function(){
+            if (queueRunState == true) {
+                document.querySelector('#name').dispatchEvent(new KeyboardEvent('keydown', {
+                    bubbles: true,
+                    cancelable: true,
+                    key: 'Escape',
+                }));
+                /*console.log("focus1",document.querySelectorAll("app-searchable-dropdown-field"))
+                for (let [key, val] of Object.entries(document.querySelectorAll("app-searchable-dropdown-field"))) {
+                    let label = val.getElementsByTagName("label")[0];
+                    console.log("focus2",label.innerText)
+                    //console.log("finding ele",label.innerText,s_target)
+                    if (label.innerText.includes("Fault Description")){
+                        let input = label.getElementsByTagName("input")[0]
+                        console.log("focus3")
+                        input.focus()
+                        break;
+                    }
+                }*/
+            };
+        },500)
     }
     function fromHTML(html) {
         html = html.trim();
@@ -542,16 +579,12 @@
             cdwInfoMap["var_cdw_map_" + idNum].field = fieldList[_G.getValue("var_cdw_map_" + idNum + "_2", 0)];
             let _field = fieldList[_G.getValue("var_cdw_map_" + idNum + "_2", 0)]
             let _flt = fault.getElementsByTagName("select")[0]
-            //when changing field dropdown, make sure whe update fault dropdown
-            //remove all old options
             for (var [key6, val6] of Object.entries(_flt.options)) {
                 val6.remove();
             }
-            //add new ones
             for (var [key5, val5] of Object.entries(faultList[_field])) {
                 _flt.add(new Option(val5,key5));
             }
-            //reset values
             _flt.value = 0;
             cdwInfoMap["var_cdw_map_" + idNum].fault = "";
             _flt.dispatchEvent(new Event("change"));
@@ -615,7 +648,7 @@
 
 
 
-
+    let itemStackList = []
     const mainUICreate = function() {
         group = _G.createSettingsGroup("PHC Dimension Mapper")
 
@@ -645,15 +678,369 @@
         _G.createSettingInput(group, "Fake Comment (For Debugging)", "","text", "var_cdwmap_fake_comment", function(){
             fakeComment = _G.getValue("var_cdwmap_fake_comment", "");
         }, "display:inline-block; width:1230px;")
+        _G.createSettingToggleButton(group, "Autofill comments", "var_autofill_comments_toggle", function() {
+            autofillCommentsToggle = _G.getValue("var_autofill_comments_toggle", false)
+            console.log("clicked",autofillCommentsToggle)
+            document.querySelector("#_q_tbody_content").innerHTML = '';
+             for (const [key, value] of Object.entries(itemStackList)) {
+                 addToStackVisual(Number(key)+1)
+             }
+             updateAccordionWindow();
+        }, true)
         _G.showToast({title: "TamperMonkey",message: "Dimension Automapper (RUBY) Loaded",messageType: "info"})
     }
     const menuStatusUpdate = () => {
         _G.updateGroupState(group, "_idDimMapperUpdate")
     }
-    _G.bind({onCreate: mainUICreate, search: "app-sidebar", id: "_idDimMapperCreateMenu", href: ["*"]})
-    _G.bind({onUpdate: menuStatusUpdate, search: "app-root", id: "_idDimMapperMenuStatus", href: ["*"]})
-    _G.bind({onUpdate: observerCallback, onCreate:observerCallback, search: "app-device-info-and-checks", id: "_idDimMapperUpdate", href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
-    _G.bind({onCreate:observerCallback2, search: "app-test-plan-form > form", id: "_idDimMapperUpdate2", href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
+    let settingsPanel
+    let backdropPanel
+    let queueModalStata = false
+    let queueStack = {}
+    let settingsBackdrop = `<ngb-modal-backdrop style="z-index: 1055;opacity:0.35;" aria-hidden="true" class="fade hide"id="__rootBackdrop"></ngb-modal-backdrop>`
+    function toggleQueueModal(forceState){
+        queueModalStata = !queueModalStata
+        if (forceState) {
+            queueModalStata = forceState
+        }
+        //queueModalStata = !queueModalStata
+        if (queueModalStata) {
+            settingsPanel.classList.add("d-block")
+            backdropPanel.classList.add("modal-backdrop")
+
+            setTimeout(() => {
+                settingsPanel.classList.replace("hide", "show");
+                backdropPanel.classList.replace("hide", "show");
+            }, 50);//applying/removing display block on the same frame will skip the fade in animation
+        }
+        if (queueModalStata == false) {
+            settingsPanel.classList.replace("show", "hide");
+            backdropPanel.classList.replace("show", "hide");
+            setTimeout(() => {
+                settingsPanel.classList.remove("d-block")
+                backdropPanel.classList.remove("modal-backdrop")
+            }, 150);
+        }
+    }
+    let StackContainer = `
+<app-order-info-custom id="__StackQ" style="border: 6px solid; border-image: linear-gradient(180deg, rgba(80,94,103,0.90), rgba(60,74,83,.00)) 1;">
+   <div class="order-info" style="background: #fff;">
+      <div class="order-info__header border-bottom border-2 d-flex align-items-center justify-content-between" style="cursor: pointer;padding: 16px 24px;" id="_q_content_acc_click">
+         <h6 class="mb-0 fw-stronger">Autofill Queue</h6>
+
+      </div>
+
+      <div class="order-info__content" style="transition: height 0.3s ease; height: 0px; display: block; overflow: hidden;" id="_q_content_acc">
+         <app-job-order-details>
+            <div class="panel-body" style="padding-bottom:0px;">
+               <div role="tabpanel" class="tab-pane active">
+                  <fieldset class="form-horizontal">
+                     <table class="table table-condensed" style="margin:0px;">
+                        <tbody>
+                           <tr>
+                              <td style="width:100%">
+                                 <input autocomplete="off" type="number" class="form-control filterInput ng-pristine ng-untouched ng-valid ng-empty" style="max-width: 100%" ng-model-options="{ debounce: 300 }" id="_q_search" placeholder="Number of Devices">
+                              </td>
+                              <td>
+                                 <button class="btn btn-primary" type="button" id="_q_button_id1" style="width:125px">
+                                    Start
+                                 </button>
+                               </td>
+                               <td>
+                                 <button class="btn btn-primary" type="button" id="_q_button_id2" style="width:125px" title="Pushes current device all the way back in the queue">
+                                    Skip
+                                 </button>
+                               </td>
+                           </tr>
+                        </tbody>
+                     </table>
+                     <div id="_q_active_content" style="padding:10px;padding-bottom:0px;"></div>
+                     <div class="" style="position: relative;">
+                        <div style="display: block;transition: height 0.3s ease;  height: 0%; padding: 10px; overflow: auto " id="_q_tbody_content">
+                        </div>
+                     </div>
+                  </fieldset>
+               </div>
+            </div>
+            <!----><!----><!----><!---->
+         </app-job-order-details>
+      </div>
+   </div>
+</app-order-info-custom>
+
+`
+    let settingsContainer = `
+<ngb-modal-window tabindex="-1" aria-modal="true" role="dialog" class="modal fade hide" id="__rootQueue">
+    <div role="document" class="modal-dialog modal-lg" style="max-width:1300px; width:1300px;">
+        <div class="modal-content">
+            <app-add-favourite-item-modal>
+                <div class="add-favourite-menu-modal">
+                    <div class="modal-header">
+                        <h5 class="mb-0 fw-stronger">Device Queue</h5><button type="button" aria-label="Close" class="btn-close" id="__closeQueue"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form novalidate="" class="d-flex flex-column gap-3 ng-untouched ng-pristine ng-invalid" onSubmit="return false;" id="__listQueue">
+                        </form>
+                    </div>
+                </div>
+            </app-add-favourite-item-modal>
+        </div>
+    </div>
+</ngb-modal-window>
+    `
+
+    let accState2 = false
+    function updateAccordionWindow(){
+        let accordionEle = document.querySelector("#_q_content_acc");
+        let tableCont = document.querySelector("#_q_tbody_content");
+        if (!accordionEle) return;
+        if (!tableCont) return;
+        let totalHeight = 0
+        if (currentActiveObject) {
+            totalHeight = totalHeight + 60.5
+        }
+        if (itemStackList.length > 0) {
+            totalHeight = totalHeight + tableCont.clientHeight
+        }
+        if (currentActiveObject && itemStackList.length > 0) {
+            totalHeight = totalHeight - 9
+        }
+        accordionEle.style.height = accState2 ? (61 + totalHeight + "px") : "0px";
+        tableCont.style.height = "100%";
+    }
+    let settingsButton = `
+    <button _ngcontent-ng-c4080991998="" type="button" appbuttonloading="" class="btn btn-primary" id="_queueBtn"> QUEUE </button>`
+    
+    
+    function validateUUID(element){
+        let UUID = element.value.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/)
+        if (UUID) {
+            element.style.color = "green"
+        } else {
+            element.style.color = "red"
+        }
+    }
+    function addToStackVisual(index){
+        index = index -1
+        let item_data = itemStackList[index]
+        let content = document.querySelector("#_q_tbody_content");
+        let inputTemplate = `<div class="input-group" style="width:100%"><div class="input-group-text" style="min-width:45px">`+(item_data.index)+`</div><input type="text" style="max-width:375px;min-width:375px" class="form-control ng-untouched ng-pristine ng-valid"><input type="text" style="display: flex;flex-grow: 100;" class="form-control ng-untouched ng-pristine ng-valid"><div _ngcontent-ng-c4080991998="" type="button" class="btn btn-danger" id="btnRemove">Remove</div></div>`
+        if (autofillCommentsToggle == true) {
+            inputTemplate = `<div class="input-group" style="width:100%"><div class="input-group-text" style="min-width:45px">`+(item_data.index)+`</div><input type="text" style="max-width:375px;min-width:375px" class="form-control ng-untouched ng-pristine ng-valid"><input type="text" style="display: flex;flex-grow: 100;" class="form-control ng-untouched ng-pristine ng-valid"><input type="text" style="display: flex;flex-grow: 100;" class="form-control ng-untouched ng-pristine ng-valid"><div _ngcontent-ng-c4080991998="" type="button" class="btn btn-danger" id="btnRemove">Remove</div></div>`
+        }
+
+        let item = content.appendChild(fromHTML(inputTemplate))
+        item.querySelector("#btnRemove").onclick = function() {
+            document.querySelector("#_q_tbody_content").innerHTML = '';
+            let objToRemove = itemStackList[index]
+            itemStackList = itemStackList.filter(item => item !== objToRemove)
+            for (const [key, value] of Object.entries(itemStackList)) {
+                addToStackVisual(Number(key)+1)
+            }
+            updateAccordionWindow();
+        }
+        let inputs = item.getElementsByTagName("input")
+        inputs[0].value = item_data.uid
+        validateUUID(inputs[0])
+        
+
+        inputs[0].oninput = function() {
+            itemStackList[index].uid = inputs[0].value
+            validateUUID(inputs[0])
+        }
+        inputs[1].value = item_data.imei
+        inputs[1].oninput = function() {
+            itemStackList[index].imei = inputs[1].value
+        }
+        if (inputs[2]) {
+            inputs[2].value = item_data.comment
+            inputs[2].oninput = function() {
+                itemStackList[index].comment = inputs[2].value
+            }
+        }
+
+
+
+    }
+    let queueRunState = false
+    function updateBtn1Visual(){
+        let ele = document.querySelector("#_q_button_id1")
+        if (queueRunState == true) {
+            ele.classList.replace("btn-primary","btn-danger");
+            ele.innerText = "Stop";
+        } else {
+            ele.classList.replace("btn-danger", "btn-primary");
+            ele.innerText = "Start";
+        }
+
+    }
+    function addToStack(uid,imei="",comment="",index = 0){
+        itemStackList.push({uid:uid,imei:imei,comment:comment,index:index})
+        document.querySelector("#_q_tbody_content").innerHTML = '';
+        for (const [key, value] of Object.entries(itemStackList)) {
+            addToStackVisual(Number(key)+1)
+        }
+
+    }
+    const observerCallback4 = () => {
+        document.querySelector("#_q_content_acc").style.transitionDuration = "0s"
+        let btn1 = document.querySelector("#_q_button_id1")
+        let btn2 = document.querySelector("#_q_button_id2")
+        if (btn1) {
+            if (!queueModalStata) {
+                btn1.title = ""
+                btn2.title = ""
+            } else {
+                btn1.title = "Resets the page and starts the queue from the top"
+                btn2.title = ""
+            }
+        }
+        console.log("callback4")
+        if (!itemStackList[0]) {
+            queueRunState = false
+            updateBtn1Visual();
+            return
+        };
+        if (queueRunState == false) return;
+        let input = document.querySelector("app-search-with-filters > div > div > div > input")
+        if (input) {
+            let obj = itemStackList[0]
+            input.value = obj.uid
+            input.dispatchEvent(new Event("input"));
+        }
+        
+    }
+    const observerCallback5 = () => { //Runs when imei box appears on the page
+        console.log(itemStackList)
+        document.querySelector("#_q_content_acc").style.transitionDuration = "0s"
+        let btn1 = document.querySelector("#_q_button_id1")
+        let btn2 = document.querySelector("#_q_button_id2")
+        if (btn1) {
+            if (queueModalStata) {
+                btn1.title = "Resets the page and stops taking items from the queue"
+                btn2.title = "Resets the page and pushes current item to the end of queue also takes the next item"
+            } else {
+                btn1.title = "Resets the page and starts the queue from the top"
+                btn2.title = ""
+            }
+        }
+        console.log("callback5")
+        if (!itemStackList[0]) return;
+        if (queueRunState == false) return;
+        let obj = itemStackList.shift()
+        currentActiveObject = obj
+        if (obj.imei != "") {
+            document.querySelector("app-device-info-card > div > div.device-info-card__header.border-bottom.border-2 > button").click() //clear if something was linked from the system (Apkudo devices have IMEI's linked to the Ruby ID)
+            let input = document.querySelector("#itemIdentifier")
+            input.value = obj.imei
+            input.dispatchEvent(new Event("input"));
+        }
+        document.querySelector("#_q_tbody_content").innerHTML = '';
+        for (const [key, value] of Object.entries(itemStackList)) {
+
+            addToStackVisual(Number(key)+1)
+        }
+        let contentEle = document.querySelector("#_q_active_content")
+        contentEle.innerHTML = '';
+        contentEle.style.padding = "0px"
+        if (currentActiveObject) {
+            let inputTemplate = `<div class="input-group" style="width:100%"><div class="input-group-text" style="min-width:45px">Current Device</div><input type="text" style="max-width:375px;min-width:375px" class="form-control ng-untouched ng-pristine ng-valid"><input type="text" style="display: flex;flex-grow: 100;" class="form-control ng-untouched ng-pristine ng-valid"><input type="text" style="display: flex;flex-grow: 100;" class="form-control ng-untouched ng-pristine ng-valid"></div>`
+            let item = contentEle.appendChild(fromHTML(inputTemplate))
+            let inputs = item.getElementsByTagName("input")
+            inputs[0].value = currentActiveObject.uid
+            //input1.readOnly = true;
+            validateUUID(inputs[0])
+            inputs[1].value = currentActiveObject.imei
+            //input2.readOnly = true;
+            if (inputs[2]) {
+                inputs[2].value = currentActiveObject.comment
+                inputs[2].oninput = function() {
+                    currentActiveObject.comment = inputs[2].value
+                }
+            }
+            contentEle.style.padding = "10px"
+            contentEle.style.paddingBottom = "0px"
+        }
+
+        updateAccordionWindow();
+        
+
+    }
+    
+
+    const observerCallback3 = () => {
+        console.log(itemStackList)
+         console.log("callback3")
+         if (!document.querySelector("#__StackQ")) {
+             currentActiveObject = undefined
+             document.querySelector("app-today-stats").parentElement.appendChild(fromHTML(StackContainer));
+             document.querySelector("#_q_content_acc").style.transitionDuration = "0s"
+             let contentEle = document.querySelector("#_q_active_content")
+             contentEle.innerHTML = '';
+             contentEle.style.padding = "0px"
+             let accordion = document.querySelector("#_q_content_acc_click");
+             accordion.onclick = function() {
+                 accState2 = !accState2
+                 document.querySelector("#_q_content_acc").style.transitionDuration = "0.3s"
+                 updateAccordionWindow();
+             }
+             updateAccordionWindow();
+             updateBtn1Visual();
+             document.querySelector("#_q_tbody_content").innerHTML = '';
+             for (const [key, value] of Object.entries(itemStackList)) {
+                 addToStackVisual(Number(key)+1)
+             }
+             updateAccordionWindow();
+             document.querySelector("#_q_search").addEventListener("keypress", function(event) {
+                 if (event.key === "Enter") {
+                     event.preventDefault();
+                     let searchVal = Number(document.querySelector("#_q_search").value)
+                     if ((searchVal % 1 == 0) && (searchVal > 0) && (searchVal <= 100)) {
+                         document.querySelector("#_q_content_acc").style.transitionDuration = "0.3s"
+                         for (let i = 0; i < searchVal; i++) {
+                             addToStack("","","",i+1)
+                         }
+                     }
+                     document.querySelector("#_q_search").value = ""
+                     updateAccordionWindow();
+                 }
+             });
+             function UIDClearBtn(){
+                 return document.querySelector("app-order-label > div > div.order-label__content > div > div.col-12.col-xxl-6.border-end.border-2 > div > div > button")
+             }
+             document.querySelector("#_q_button_id1").onclick = function() {
+                 if (!queueRunState) {
+                     let ele = UIDClearBtn();
+                     if (!currentActiveObject && ele && itemStackList.length > 0) {
+                         ele.click()
+                     }
+                 }
+                 queueRunState = !queueRunState
+                 updateBtn1Visual();
+                 observerCallback4();
+             }
+             document.querySelector("#_q_button_id2").onclick = function() {
+                 let ele = UIDClearBtn();
+                 if (!ele) return;
+                 if (currentActiveObject) {
+                     addToStack(currentActiveObject.uid,currentActiveObject.imei,currentActiveObject.comment,currentActiveObject.index)
+                     updateAccordionWindow();
+                     if (ele) {
+                         ele.click()
+                     };
+                 }
+                 
+             }
+         };
+    }
+
+    _G.bind({onUpdate: menuStatusUpdate,  search: "app-root",                                             id: "_idDimMapperMenuStatus", href: ["*"]})
+    _G.bind({onCreate: mainUICreate,      search: "app-sidebar",                                          id: "_idDimMapperCreateMenu", href: ["*"]})
+    _G.bind({onCreate: observerCallback3, search: "app-today-stats",                                      id: "_idDimMapperUpdate3",    href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
+    _G.bind({onCreate: observerCallback5, search: "#itemIdentifier",                                      id: "_idDimMapperUpdate5",    href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
+    _G.bind({onCreate: observerCallback2, search: "app-test-plan-form > form",                            id: "_idDimMapperUpdate2",    href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
+    _G.bind({onCreate: observerCallback4, search: "app-search-with-filters > div > div > div > input",    id: "_idDimMapperUpdate4",    href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
+    _G.bind({onUpdate: observerCallback, onCreate:observerCallback, search: "app-device-info-and-checks", id: "_idDimMapperUpdate",     href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
+
 })();
 
 
