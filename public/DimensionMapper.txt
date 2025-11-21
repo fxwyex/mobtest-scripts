@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dimension automapper (RUBY)
 // @namespace    http://tampermonkey.net/
-// @version      1.1.0
+// @version      1.1.1
 // @description  try to take over the world!
 // @updateURL    https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/DimensionMapper.txt
 // @downloadURL  https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/DimensionMapper.txt
@@ -385,6 +385,7 @@
     let accState = false; //accordion open/close state
     let cdwMapToggle = _G.getValue("var_cdwmap_master_toggle", true);
     let autofillCommentsToggle = _G.getValue("var_autofill_comments_toggle", false)
+    let autofillIMEIToggle = _G.getValue("var_autofill_imei_toggle", true)
     let commentPHC = ""
     let cdwInfoMap = {}
     let group
@@ -678,9 +679,18 @@
         _G.createSettingInput(group, "Fake Comment (For Debugging)", "","text", "var_cdwmap_fake_comment", function(){
             fakeComment = _G.getValue("var_cdwmap_fake_comment", "");
         }, "display:inline-block; width:1230px;")
-        _G.createSettingToggleButton(group, "Autofill comments", "var_autofill_comments_toggle", function() {
+        _G.createSettingToggleButton(group, "Show Autofill Comments Field", "var_autofill_comments_toggle", function() {
             autofillCommentsToggle = _G.getValue("var_autofill_comments_toggle", false)
             console.log("clicked",autofillCommentsToggle)
+            document.querySelector("#_q_tbody_content").innerHTML = '';
+             for (const [key, value] of Object.entries(itemStackList)) {
+                 addToStackVisual(Number(key)+1)
+             }
+             updateAccordionWindow();
+        }, true)
+        _G.createSettingToggleButton(group, "Show Autofill Identifier Field", "var_autofill_imei_toggle", function() {
+            autofillIMEIToggle = _G.getValue("var_autofill_imei_toggle", true)
+            console.log("clicked",autofillIMEIToggle)
             document.querySelector("#_q_tbody_content").innerHTML = '';
              for (const [key, value] of Object.entries(itemStackList)) {
                  addToStackVisual(Number(key)+1)
@@ -823,12 +833,25 @@
         index = index -1
         let item_data = itemStackList[index]
         let content = document.querySelector("#_q_tbody_content");
-        let inputTemplate = `<div class="input-group" style="width:100%"><div class="input-group-text" style="min-width:45px">`+(item_data.index)+`</div><input type="text" style="max-width:375px;min-width:375px" class="form-control ng-untouched ng-pristine ng-valid"><input type="text" style="display: flex;flex-grow: 100;" class="form-control ng-untouched ng-pristine ng-valid"><div _ngcontent-ng-c4080991998="" type="button" class="btn btn-danger" id="btnRemove">Remove</div></div>`
-        if (autofillCommentsToggle == true) {
-            inputTemplate = `<div class="input-group" style="width:100%"><div class="input-group-text" style="min-width:45px">`+(item_data.index)+`</div><input type="text" style="max-width:375px;min-width:375px" class="form-control ng-untouched ng-pristine ng-valid"><input type="text" style="display: flex;flex-grow: 100;" class="form-control ng-untouched ng-pristine ng-valid"><input type="text" style="display: flex;flex-grow: 100;" class="form-control ng-untouched ng-pristine ng-valid"><div _ngcontent-ng-c4080991998="" type="button" class="btn btn-danger" id="btnRemove">Remove</div></div>`
-        }
+        let inputTemplate = `<div class="input-group" style="width:100%"><div class="input-group-text" style="min-width:45px">`+(item_data.index)+`</div><input id="autofill_ruby_id" placeholder="Ruby ID" type="text" style="max-width:375px;min-width:375px" class="form-control ng-untouched ng-pristine ng-valid"><input id="autofill_imei_id" placeholder="Device Identifier" type="text" style="display: flex;flex-grow: 100;" class="form-control ng-untouched ng-pristine ng-valid"><div _ngcontent-ng-c4080991998="" type="button" class="btn btn-danger" id="btnRemove">Remove</div></div>`
+        //if (autofillCommentsToggle == true) {
+            inputTemplate = `<div class="input-group" style="width:100%"><div class="input-group-text" style="min-width:45px">`+(item_data.index)+`</div><input id="autofill_ruby_id" placeholder="Ruby ID" type="text" style="max-width:375px;min-width:375px" class="form-control ng-untouched ng-pristine ng-valid"><input id="autofill_imei_id" placeholder="Device Identifier" type="text" style="display: flex;flex-grow: 100;" class="form-control ng-untouched ng-pristine ng-valid"><input id="autofill_comment_id" placeholder="Comment" type="text" style="display: flex;flex-grow: 100;" class="form-control ng-untouched ng-pristine ng-valid"><div _ngcontent-ng-c4080991998="" type="button" class="btn btn-danger" id="btnRemove">Remove</div></div>`
+        //}
+
 
         let item = content.appendChild(fromHTML(inputTemplate))
+        let itemRuby = item.querySelector("#autofill_ruby_id")
+        let itemIMEI = item.querySelector("#autofill_imei_id")
+        let itemComment = item.querySelector("#autofill_comment_id")
+        if (!autofillCommentsToggle) {
+            itemComment.remove();
+        }
+        if (!autofillIMEIToggle) {
+            itemIMEI.remove();
+        }
+        if (!autofillCommentsToggle && !autofillIMEIToggle){
+            itemRuby.style.maxWidth = "100%";
+        }
         item.querySelector("#btnRemove").onclick = function() {
             document.querySelector("#_q_tbody_content").innerHTML = '';
             let objToRemove = itemStackList[index]
@@ -838,23 +861,25 @@
             }
             updateAccordionWindow();
         }
-        let inputs = item.getElementsByTagName("input")
-        inputs[0].value = item_data.uid
-        validateUUID(inputs[0])
-        
+        itemRuby.value = item_data.uid
+        validateUUID(itemRuby)
+        itemRuby.oninput = function() {
+            itemStackList[index].uid = itemRuby.value
+            validateUUID(itemRuby)
+        }
+        if (itemIMEI) {
+            itemIMEI.value = item_data.imei
+            itemIMEI.oninput = function() {
+                itemStackList[index].imei = itemIMEI.value
+            }
+        }
 
-        inputs[0].oninput = function() {
-            itemStackList[index].uid = inputs[0].value
-            validateUUID(inputs[0])
-        }
-        inputs[1].value = item_data.imei
-        inputs[1].oninput = function() {
-            itemStackList[index].imei = inputs[1].value
-        }
-        if (inputs[2]) {
-            inputs[2].value = item_data.comment
-            inputs[2].oninput = function() {
-                itemStackList[index].comment = inputs[2].value
+        
+        
+        if (itemComment) {
+            itemComment.value = item_data.comment
+            itemComment.oninput = function() {
+                itemStackList[index].comment = itemComment.value
             }
         }
 
