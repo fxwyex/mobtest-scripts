@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dimension automapper (RUBY)
 // @namespace    http://tampermonkey.net/
-// @version      1.1.1
+// @version      1.1.2
 // @description  try to take over the world!
 // @updateURL    https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/DimensionMapper.txt
 // @downloadURL  https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/DimensionMapper.txt
@@ -648,7 +648,7 @@
 
 
 
-
+    let sequencialInputStack = [];
     let itemStackList = []
     const mainUICreate = function() {
         group = _G.createSettingsGroup("PHC Dimension Mapper")
@@ -682,6 +682,7 @@
         _G.createSettingToggleButton(group, "Show Autofill Comments Field", "var_autofill_comments_toggle", function() {
             autofillCommentsToggle = _G.getValue("var_autofill_comments_toggle", false)
             console.log("clicked",autofillCommentsToggle)
+            sequencialInputStack = [];
             document.querySelector("#_q_tbody_content").innerHTML = '';
              for (const [key, value] of Object.entries(itemStackList)) {
                  addToStackVisual(Number(key)+1)
@@ -692,6 +693,7 @@
             autofillIMEIToggle = _G.getValue("var_autofill_imei_toggle", true)
             console.log("clicked",autofillIMEIToggle)
             document.querySelector("#_q_tbody_content").innerHTML = '';
+            sequencialInputStack = []
              for (const [key, value] of Object.entries(itemStackList)) {
                  addToStackVisual(Number(key)+1)
              }
@@ -760,6 +762,16 @@
                                     Skip
                                  </button>
                                </td>
+                               <td>
+                                 <button class="btn btn-primary" type="button" id="_q_button_id3" style="width:125px" >
+                                    Copy
+                                 </button>
+                               </td>
+                               <td>
+                                 <button class="btn btn-primary" type="button" id="_q_button_id4" style="width:125px" >
+                                    Restore
+                                 </button>
+                               </td>
                            </tr>
                         </tbody>
                      </table>
@@ -797,7 +809,7 @@
     </div>
 </ngb-modal-window>
     `
-
+    let isAnyFieldFocused = false;
     let accState2 = false
     function updateAccordionWindow(){
         let accordionEle = document.querySelector("#_q_content_acc");
@@ -820,15 +832,20 @@
     let settingsButton = `
     <button _ngcontent-ng-c4080991998="" type="button" appbuttonloading="" class="btn btn-primary" id="_queueBtn"> QUEUE </button>`
     
-    
+    let onUIDInput = (ele) => {
+
+    }
     function validateUUID(element){
         let UUID = element.value.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/)
         if (UUID) {
             element.style.color = "green"
+            return true;
         } else {
             element.style.color = "red"
         }
+        return false;
     }
+
     function addToStackVisual(index){
         index = index -1
         let item_data = itemStackList[index]
@@ -856,6 +873,7 @@
             document.querySelector("#_q_tbody_content").innerHTML = '';
             let objToRemove = itemStackList[index]
             itemStackList = itemStackList.filter(item => item !== objToRemove)
+            sequencialInputStack = []
             for (const [key, value] of Object.entries(itemStackList)) {
                 addToStackVisual(Number(key)+1)
             }
@@ -863,19 +881,51 @@
         }
         itemRuby.value = item_data.uid
         validateUUID(itemRuby)
+        sequencialInputStack.push(itemRuby);
         itemRuby.oninput = function() {
             itemStackList[index].uid = itemRuby.value
-            validateUUID(itemRuby)
-        }
-        if (itemIMEI) {
-            itemIMEI.value = item_data.imei
-            itemIMEI.oninput = function() {
-                itemStackList[index].imei = itemIMEI.value
+            let isvalid = validateUUID(itemRuby)
+            if (isvalid) {
+                setTimeout(function(){
+
+                    let index = sequencialInputStack.findIndex(x => x == itemRuby)
+                    if (sequencialInputStack[index+1]) {
+                        sequencialInputStack[index+1].focus()
+                    }
+                },100)
             }
         }
 
-        
-        
+        if (itemIMEI) {
+            if (autofillIMEIToggle) {
+                sequencialInputStack.push(itemIMEI);
+            }
+            itemIMEI.value = item_data.imei
+            let timeout_handle
+            let lastDate = Date.now()
+            let totalDelta = 0
+            itemIMEI.oninput = function() {
+                itemStackList[index].imei = itemIMEI.value
+                let characters = itemIMEI.value.length
+                clearTimeout(timeout_handle);
+                if ((Date.now()-lastDate > 75 && characters == 1)) {
+                    totalDelta = 0;
+                    lastDate = Date.now()
+                } else {
+                    totalDelta = totalDelta + (Date.now()-lastDate)
+                    lastDate = Date.now()
+                }
+                if (characters > 4 && (totalDelta/characters) < 15) {
+                    timeout_handle = setTimeout(function(){
+                        let index = sequencialInputStack.findIndex(x => x == itemIMEI)
+                        if (sequencialInputStack[index+1]) {
+                            sequencialInputStack[index+1].focus()
+                        }
+                        timeout_handle = null;
+                    },100)
+                }
+            }
+        }
         if (itemComment) {
             itemComment.value = item_data.comment
             itemComment.oninput = function() {
@@ -901,12 +951,23 @@
     function addToStack(uid,imei="",comment="",index = 0){
         itemStackList.push({uid:uid,imei:imei,comment:comment,index:index})
         document.querySelector("#_q_tbody_content").innerHTML = '';
+        sequencialInputStack = []
         for (const [key, value] of Object.entries(itemStackList)) {
             addToStackVisual(Number(key)+1)
         }
 
     }
     const observerCallback4 = () => {
+        let input = document.querySelector("app-search-with-filters > div > div > div > input")
+        if (input) {
+            //console.log(isAnyFieldFocused)
+            /*input.addEventListener("input", (event) => {
+                if (isAnyFieldFocused) {
+                    console.log("RESET")
+                    input.value = "";
+                }
+            });*/
+        }
         document.querySelector("#_q_content_acc").style.transitionDuration = "0s"
         let btn1 = document.querySelector("#_q_button_id1")
         let btn2 = document.querySelector("#_q_button_id2")
@@ -926,13 +987,24 @@
             return
         };
         if (queueRunState == false) return;
-        let input = document.querySelector("app-search-with-filters > div > div > div > input")
+        
         if (input) {
             let obj = itemStackList[0]
             input.value = obj.uid
             input.dispatchEvent(new Event("input"));
         }
         
+    }
+
+    function FocusBlur(ele) {
+        /*ele.addEventListener("focus", (event) => {
+            isAnyFieldFocused = true;
+            document.querySelector("app-search-with-filters > div > div > div > input").readOnly = true;
+        });
+        ele.addEventListener("blur", (event) => {
+            isAnyFieldFocused = false;
+            document.querySelector("app-search-with-filters > div > div > div > input").readOnly = false;
+        });*/
     }
     const observerCallback5 = () => { //Runs when imei box appears on the page
         console.log(itemStackList)
@@ -960,6 +1032,7 @@
             input.dispatchEvent(new Event("input"));
         }
         document.querySelector("#_q_tbody_content").innerHTML = '';
+        sequencialInputStack = []
         for (const [key, value] of Object.entries(itemStackList)) {
 
             addToStackVisual(Number(key)+1)
@@ -972,6 +1045,8 @@
             let item = contentEle.appendChild(fromHTML(inputTemplate))
             let inputs = item.getElementsByTagName("input")
             inputs[0].value = currentActiveObject.uid
+
+
             //input1.readOnly = true;
             validateUUID(inputs[0])
             inputs[1].value = currentActiveObject.imei
@@ -1011,6 +1086,7 @@
              updateAccordionWindow();
              updateBtn1Visual();
              document.querySelector("#_q_tbody_content").innerHTML = '';
+             sequencialInputStack = [];
              for (const [key, value] of Object.entries(itemStackList)) {
                  addToStackVisual(Number(key)+1)
              }
@@ -1055,6 +1131,29 @@
                  }
                  
              }
+             document.querySelector("#_q_button_id3").onclick = function() {
+                 console.log(itemStackList)
+                 let clipInfo = {isThisFromScriptAndNotAFakeJsonDataOrSomethingElse:true,data:itemStackList}
+                 let serializedStr = JSON.stringify(clipInfo);
+                 navigator.clipboard.writeText(serializedStr);
+             }
+             document.querySelector("#_q_button_id4").onclick = function() {
+                 navigator.clipboard.readText().then((clipText) => {
+                     console.log(clipText)
+                     let parsedData = JSON.parse(clipText);
+                     if (parsedData && parsedData.isThisFromScriptAndNotAFakeJsonDataOrSomethingElse == true){
+                         itemStackList = {}
+                         itemStackList = parsedData.data
+                         document.querySelector("#_q_tbody_content").innerHTML = '';
+                         sequencialInputStack = [];
+                         for (const [key, value] of Object.entries(itemStackList)) {
+                             addToStackVisual(Number(key)+1)
+                         }
+                         updateAccordionWindow();
+                     }
+
+                 });
+             }
          };
     }
 
@@ -1065,6 +1164,7 @@
     _G.bind({onCreate: observerCallback2, search: "app-test-plan-form > form",                            id: "_idDimMapperUpdate2",    href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
     _G.bind({onCreate: observerCallback4, search: "app-search-with-filters > div > div > div > input",    id: "_idDimMapperUpdate4",    href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
     _G.bind({onUpdate: observerCallback, onCreate:observerCallback, search: "app-device-info-and-checks", id: "_idDimMapperUpdate",     href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
+    _G.bind({onUpdate: onUIDInput, onCreate:onUIDInput, search: "app-search-with-filters > div > div > div > input", id: "_idDimMapperUpdate6",     href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
 
 })();
 
