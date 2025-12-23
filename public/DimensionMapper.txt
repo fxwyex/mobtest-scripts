@@ -1,13 +1,15 @@
 // ==UserScript==
 // @name         Dimension automapper (RUBY)
 // @namespace    http://tampermonkey.net/
-// @version      1.1.5
+// @version      1.1.6
 // @description  try to take over the world!
 // @updateURL    https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/DimensionMapper.txt
 // @downloadURL  https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/DimensionMapper.txt
 // @author       You
 // @include      /^https:\/\/r.*a.*tech\/?/
 // @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
+// @grant              GM_getValue
+// @grant              GM_setValue
 // ==/UserScript==
 
 (function() {
@@ -763,7 +765,7 @@
                            <tr>
                               <td style="width:100%">
 
-                                 <div _ngcontent-ng-c2633161230="" class="input-number"><input _ngcontent-ng-c2633161230="" type="number" class="form-control ng-untouched ng-pristine ng-valid" style="min-width:250px" id="_q_search" placeholder="Number of Devices" step="1" min="0" max="9007199254740991"><button _ngcontent-ng-c2633161230="" type="button" id="_q_btn_dec" class="btn btn-secondary input-number--decrement"><i _ngcontent-ng-c2633161230="" class="fa-solid fa-minus"></i></button><button _ngcontent-ng-c2633161230="" type="button" id="_q_btn_inc" class="btn btn-primary input-number--increment"><i _ngcontent-ng-c2633161230="" class="fa-solid fa-plus"></i></button></div>
+                                 <div _ngcontent-ng-c2633161230="" class="input-number"style="display:flex"><input type="number" class="form-control ng-untouched ng-pristine ng-valid" style="min-width:250px;max-width:250px" id="_q_search" placeholder="Number of Devices" step="1" min="0" style="display:inline-block" max="9007199254740991"><button style="display:inline-block" type="button" id="_q_btn_dec" class="btn btn-secondary"><i class="fa-solid fa-minus"></i></button><button style="inline-block" type="button" id="_q_btn_inc" class="btn btn-primary"><i _ngcontent-ng-c2633161230="" class="fa-solid fa-plus"></i></button></div>
                               </td>
                               <td>
                                  <button class="btn btn-primary" type="button" id="_q_button_id1" style="width:125px">
@@ -783,6 +785,11 @@
                                <td>
                                  <button class="btn btn-primary" type="button" id="_q_button_id4" style="width:125px" title='Restores the list state from Clipboard'>
                                     Restore
+                                 </button>
+                               </td>
+                               <td>
+                                 <button class="btn btn-primary" type="button" id="_q_button_id5" style="width:125px" title=''>
+                                    Lock
                                  </button>
                                </td>
                            </tr>
@@ -844,7 +851,7 @@
     }
     let settingsButton = `
     <button _ngcontent-ng-c4080991998="" type="button" appbuttonloading="" class="btn btn-primary" id="_queueBtn"> QUEUE </button>`
-    
+    let lockState = false;
     function validateUUID(element){
         let UUID = element.value.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/)
         if (UUID) {
@@ -855,7 +862,14 @@
         }
         return false;
     }
-
+    function saveStateToDB() {
+        //GM_setValue("saveState", JSON.stringify(itemStackList))
+    }
+    function restoreState() {
+        //let data = GM_getValue("saveState")
+        //if (!data) return;
+        //itemStackList = JSON.parse(data);
+    }
     function addToStackVisual(index){
         index = index -1
         let item_data = itemStackList[index]
@@ -875,6 +889,7 @@
             itemRuby.style.maxWidth = "100%";
         }
         item.querySelector("#btnRemove").onclick = function() {
+            if (lockState) return;
             document.querySelector("#_q_tbody_content").innerHTML = '';
             let objToRemove = itemStackList[index]
             itemStackList = itemStackList.filter(item => item !== objToRemove)
@@ -937,9 +952,6 @@
                 itemStackList[index].comment = itemComment.value
             }
         }
-
-
-
     }
     let queueRunState = false
     function updateBtn1Visual(){
@@ -950,6 +962,17 @@
         } else {
             ele.classList.replace("btn-danger", "btn-primary");
             ele.innerText = "Start";
+        }
+
+    }
+    function updateBtn2Visual(){
+        let ele = document.querySelector("#_q_button_id5")
+        if (lockState == true) {
+            ele.classList.replace("btn-primary","btn-danger");
+            ele.innerText = "Unlock";
+        } else {
+            ele.classList.replace("btn-danger", "btn-primary");
+            ele.innerText = "Lock";
         }
 
     }
@@ -980,6 +1003,7 @@
         if (!itemStackList[0]) {
             queueRunState = false
             updateBtn1Visual();
+            updateBtn2Visual();
             return
         };
         if (queueRunState == false) return;
@@ -1045,7 +1069,7 @@
             contentEle.style.padding = "10px"
             contentEle.style.paddingBottom = "0px"
         }
-
+        saveStateToDB();
         updateAccordionWindow();
         
 
@@ -1056,6 +1080,7 @@
         console.log(itemStackList)
          console.log("callback3")
          if (!document.querySelector("#__StackQ")) {
+             restoreState();
              currentActiveObject = undefined
              document.querySelector("app-today-stats").parentElement.appendChild(fromHTML(StackContainer));
              document.querySelector("#_q_content_acc").style.transitionDuration = "0s"
@@ -1070,6 +1095,7 @@
              }
              updateAccordionWindow();
              updateBtn1Visual();
+             updateBtn2Visual();
              document.querySelector("#_q_tbody_content").innerHTML = '';
              sequencialInputStack = [];
              for (const [key, value] of Object.entries(itemStackList)) {
@@ -1144,10 +1170,18 @@
                              addToStackVisual(Number(key)+1)
                          }
                          updateAccordionWindow();
+                         saveStateToDB();
                      }
 
                  });
              }
+
+             document.querySelector("#_q_button_id5").onclick = function() {
+                 lockState = !lockState;
+                 updateBtn2Visual();
+             }
+
+             saveStateToDB();
          };
     }
     let pages = ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]
