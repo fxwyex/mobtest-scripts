@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dimension automapper (RUBY)
 // @namespace    http://tampermonkey.net/
-// @version      1.1.2
+// @version      1.1.5
 // @description  try to take over the world!
 // @updateURL    https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/DimensionMapper.txt
 // @downloadURL  https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/DimensionMapper.txt
@@ -22,6 +22,17 @@
         </div>
         <div class="order-info__content" style="transition: height 0.3s ease; height: 0px; display: block; overflow: hidden;" id="_lkp_content_acc2">
             <div style="display: flex;padding-top:20px;justify-content: center;">
+                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+                    Fault Description
+                </label>
+                <div style="width:100%">
+                    <select id="dim_1_1_custom" class="form-control _dimField" style="max-width: 100%;" data-required="False" data-type="int"></select>
+                </div>
+                <div class="col-sm-1" style="padding-top:8px;padding-left:10px;min-width:50px;">
+                    <input type="checkbox" id="dim_1_1_custom_force" style="width: 27px; height: 27px;">
+                </div>
+            </div>
+            <div style="display: flex;justify-content: center;">
                 <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
                     Cloud Lock
                 </label>
@@ -129,6 +140,7 @@
 `
 
     let dimState = {
+        "#dim_1_1_custom": {value:"0",force:false,field:"Fault Description"},
         "#dim_1_3_custom": {value:"0",force:false,field:"Cloud Lock"},
         "#dim_1_10_custom": {value:"0",force:false,field:"Functionality"},
         "#dim_1_4_custom": {value:"0",force:false,field:"Appearance"},
@@ -493,11 +505,11 @@
         if (!lkpInstance) {
             injectLocation.append(fromHTML(modelLookupTemplate));
             let accordionEle = document.querySelector("#_lkp_content_acc2");
-            accordionEle.style.height = accState ? "440px" : "0px";
+            accordionEle.style.height = accState ? "480px" : "0px";
             let accordion = document.querySelector("#_lkp_content_acc_click2");
             accordion.onclick = function() {
                 accState = !accState
-                accordionEle.style.height = accState ? "440px" : "0px";
+                accordionEle.style.height = accState ? "480px" : "0px";
             }
             let clearBtn = document.querySelector("#__mapper_clear_all");
             clearBtn.onclick = function() {
@@ -750,7 +762,8 @@
                         <tbody>
                            <tr>
                               <td style="width:100%">
-                                 <input autocomplete="off" type="number" class="form-control filterInput ng-pristine ng-untouched ng-valid ng-empty" style="max-width: 100%" ng-model-options="{ debounce: 300 }" id="_q_search" placeholder="Number of Devices">
+
+                                 <div _ngcontent-ng-c2633161230="" class="input-number"><input _ngcontent-ng-c2633161230="" type="number" class="form-control ng-untouched ng-pristine ng-valid" style="min-width:250px" id="_q_search" placeholder="Number of Devices" step="1" min="0" max="9007199254740991"><button _ngcontent-ng-c2633161230="" type="button" id="_q_btn_dec" class="btn btn-secondary input-number--decrement"><i _ngcontent-ng-c2633161230="" class="fa-solid fa-minus"></i></button><button _ngcontent-ng-c2633161230="" type="button" id="_q_btn_inc" class="btn btn-primary input-number--increment"><i _ngcontent-ng-c2633161230="" class="fa-solid fa-plus"></i></button></div>
                               </td>
                               <td>
                                  <button class="btn btn-primary" type="button" id="_q_button_id1" style="width:125px">
@@ -763,12 +776,12 @@
                                  </button>
                                </td>
                                <td>
-                                 <button class="btn btn-primary" type="button" id="_q_button_id3" style="width:125px" >
+                                 <button class="btn btn-primary" type="button" id="_q_button_id3" style="width:125px" title="Copy the list to the Clipboard (Current Device not included)">
                                     Copy
                                  </button>
                                </td>
                                <td>
-                                 <button class="btn btn-primary" type="button" id="_q_button_id4" style="width:125px" >
+                                 <button class="btn btn-primary" type="button" id="_q_button_id4" style="width:125px" title='Restores the list state from Clipboard'>
                                     Restore
                                  </button>
                                </td>
@@ -832,9 +845,6 @@
     let settingsButton = `
     <button _ngcontent-ng-c4080991998="" type="button" appbuttonloading="" class="btn btn-primary" id="_queueBtn"> QUEUE </button>`
     
-    let onUIDInput = (ele) => {
-
-    }
     function validateUUID(element){
         let UUID = element.value.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/)
         if (UUID) {
@@ -850,12 +860,7 @@
         index = index -1
         let item_data = itemStackList[index]
         let content = document.querySelector("#_q_tbody_content");
-        let inputTemplate = `<div class="input-group" style="width:100%"><div class="input-group-text" style="min-width:45px">`+(item_data.index)+`</div><input id="autofill_ruby_id" placeholder="Ruby ID" type="text" style="max-width:375px;min-width:375px" class="form-control ng-untouched ng-pristine ng-valid"><input id="autofill_imei_id" placeholder="Device Identifier" type="text" style="display: flex;flex-grow: 100;" class="form-control ng-untouched ng-pristine ng-valid"><div _ngcontent-ng-c4080991998="" type="button" class="btn btn-danger" id="btnRemove">Remove</div></div>`
-        //if (autofillCommentsToggle == true) {
-            inputTemplate = `<div class="input-group" style="width:100%"><div class="input-group-text" style="min-width:45px">`+(item_data.index)+`</div><input id="autofill_ruby_id" placeholder="Ruby ID" type="text" style="max-width:375px;min-width:375px" class="form-control ng-untouched ng-pristine ng-valid"><input id="autofill_imei_id" placeholder="Device Identifier" type="text" style="display: flex;flex-grow: 100;" class="form-control ng-untouched ng-pristine ng-valid"><input id="autofill_comment_id" placeholder="Comment" type="text" style="display: flex;flex-grow: 100;" class="form-control ng-untouched ng-pristine ng-valid"><div _ngcontent-ng-c4080991998="" type="button" class="btn btn-danger" id="btnRemove">Remove</div></div>`
-        //}
-
-
+        let inputTemplate = `<div class="input-group" style="width:100%"><div class="input-group-text" style="min-width:45px">`+(item_data.index)+`</div><input id="autofill_ruby_id" placeholder="Ruby ID" type="text" style="max-width:375px;min-width:375px" class="form-control ng-untouched ng-pristine ng-valid"><input id="autofill_imei_id" placeholder="Device Identifier" type="text" style="display: flex;flex-grow: 100;" class="form-control ng-untouched ng-pristine ng-valid"><input id="autofill_comment_id" placeholder="Comment" type="text" style="display: flex;flex-grow: 100;" class="form-control ng-untouched ng-pristine ng-valid"><div _ngcontent-ng-c4080991998="" type="button" class="btn btn-danger" id="btnRemove">Remove</div></div>`
         let item = content.appendChild(fromHTML(inputTemplate))
         let itemRuby = item.querySelector("#autofill_ruby_id")
         let itemIMEI = item.querySelector("#autofill_imei_id")
@@ -959,15 +964,6 @@
     }
     const observerCallback4 = () => {
         let input = document.querySelector("app-search-with-filters > div > div > div > input")
-        if (input) {
-            //console.log(isAnyFieldFocused)
-            /*input.addEventListener("input", (event) => {
-                if (isAnyFieldFocused) {
-                    console.log("RESET")
-                    input.value = "";
-                }
-            });*/
-        }
         document.querySelector("#_q_content_acc").style.transitionDuration = "0s"
         let btn1 = document.querySelector("#_q_button_id1")
         let btn2 = document.querySelector("#_q_button_id2")
@@ -994,17 +990,6 @@
             input.dispatchEvent(new Event("input"));
         }
         
-    }
-
-    function FocusBlur(ele) {
-        /*ele.addEventListener("focus", (event) => {
-            isAnyFieldFocused = true;
-            document.querySelector("app-search-with-filters > div > div > div > input").readOnly = true;
-        });
-        ele.addEventListener("blur", (event) => {
-            isAnyFieldFocused = false;
-            document.querySelector("app-search-with-filters > div > div > div > input").readOnly = false;
-        });*/
     }
     const observerCallback5 = () => { //Runs when imei box appears on the page
         console.log(itemStackList)
@@ -1101,10 +1086,19 @@
                              addToStack("","","",i+1)
                          }
                      }
-                     document.querySelector("#_q_search").value = ""
+                     //document.querySelector("#_q_search").value = 0
                      updateAccordionWindow();
                  }
              });
+
+             document.querySelector("#_q_btn_dec").onclick = function() {
+                 let ele = document.querySelector("#_q_search")
+                 ele.value = Number(ele.value) - 1;
+             }
+             document.querySelector("#_q_btn_inc").onclick = function() {
+                 let ele = document.querySelector("#_q_search")
+                 ele.value = Number(ele.value) + 1;
+             }
              function UIDClearBtn(){
                  return document.querySelector("app-order-label > div > div.order-label__content > div > div.col-12.col-xxl-6.border-end.border-2 > div > div > button")
              }
@@ -1133,7 +1127,7 @@
              }
              document.querySelector("#_q_button_id3").onclick = function() {
                  console.log(itemStackList)
-                 let clipInfo = {isThisFromScriptAndNotAFakeJsonDataOrSomethingElse:true,data:itemStackList}
+                 let clipInfo = {"6853bffa3813591aefc5c335eaf00c27b1d19bad2f7e2496311da612cacd82c4":true,data:itemStackList}
                  let serializedStr = JSON.stringify(clipInfo);
                  navigator.clipboard.writeText(serializedStr);
              }
@@ -1141,7 +1135,7 @@
                  navigator.clipboard.readText().then((clipText) => {
                      console.log(clipText)
                      let parsedData = JSON.parse(clipText);
-                     if (parsedData && parsedData.isThisFromScriptAndNotAFakeJsonDataOrSomethingElse == true){
+                     if (parsedData && parsedData["6853bffa3813591aefc5c335eaf00c27b1d19bad2f7e2496311da612cacd82c4"] == true){
                          itemStackList = {}
                          itemStackList = parsedData.data
                          document.querySelector("#_q_tbody_content").innerHTML = '';
@@ -1156,15 +1150,14 @@
              }
          };
     }
-
+    let pages = ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]
     _G.bind({onUpdate: menuStatusUpdate,  search: "app-root",                                             id: "_idDimMapperMenuStatus", href: ["*"]})
     _G.bind({onCreate: mainUICreate,      search: "app-sidebar",                                          id: "_idDimMapperCreateMenu", href: ["*"]})
-    _G.bind({onCreate: observerCallback3, search: "app-today-stats",                                      id: "_idDimMapperUpdate3",    href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
-    _G.bind({onCreate: observerCallback5, search: "#itemIdentifier",                                      id: "_idDimMapperUpdate5",    href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
-    _G.bind({onCreate: observerCallback2, search: "app-test-plan-form > form",                            id: "_idDimMapperUpdate2",    href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
-    _G.bind({onCreate: observerCallback4, search: "app-search-with-filters > div > div > div > input",    id: "_idDimMapperUpdate4",    href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
-    _G.bind({onUpdate: observerCallback, onCreate:observerCallback, search: "app-device-info-and-checks", id: "_idDimMapperUpdate",     href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
-    _G.bind({onUpdate: onUIDInput, onCreate:onUIDInput, search: "app-search-with-filters > div > div > div > input", id: "_idDimMapperUpdate6",     href: ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]})
+    _G.bind({onCreate: observerCallback3, search: "app-today-stats",                                      id: "_idDimMapperUpdate3",    href: pages})
+    _G.bind({onCreate: observerCallback5, search: "#itemIdentifier",                                      id: "_idDimMapperUpdate5",    href: pages})
+    _G.bind({onCreate: observerCallback2, search: "app-test-plan-form > form > app-searchable-dropdown-field:nth-child(1) > app-form-field",                            id: "_idDimMapperUpdate2",    href: pages})
+    _G.bind({onCreate: observerCallback4, search: "app-search-with-filters > div > div > div > input",    id: "_idDimMapperUpdate4",    href: pages})
+    _G.bind({onUpdate: observerCallback, onCreate:observerCallback, search: "app-device-info-and-checks", id: "_idDimMapperUpdate",     href: pages})
 
 })();
 
