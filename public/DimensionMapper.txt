@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dimension automapper (RUBY)
 // @namespace    http://tampermonkey.net/
-// @version      1.1.6
+// @version      1.2.0
 // @description  try to take over the world!
 // @updateURL    https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/DimensionMapper.txt
 // @downloadURL  https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/DimensionMapper.txt
@@ -24,6 +24,17 @@
         </div>
         <div class="order-info__content" style="transition: height 0.3s ease; height: 0px; display: block; overflow: hidden;" id="_lkp_content_acc2">
             <div style="display: flex;padding-top:20px;justify-content: center;">
+                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+                    Color
+                </label>
+                <div style="width:100%">
+                    <select id="dim_1_0_custom" class="form-control _dimField" style="max-width: 100%;" data-required="False" data-type="int"></select>
+                </div>
+                <div class="col-sm-1" style="padding-top:8px;padding-left:10px;min-width:50px;">
+                    <input type="checkbox" id="dim_1_0_custom_force" style="width: 27px; height: 27px;">
+                </div>
+            </div>
+            <div style="display: flex;justify-content: center;">
                 <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
                     Fault Description
                 </label>
@@ -142,6 +153,7 @@
 `
 
     let dimState = {
+        "#dim_1_0_custom": {value:"0",force:false,field:"Color"},
         "#dim_1_1_custom": {value:"0",force:false,field:"Fault Description"},
         "#dim_1_3_custom": {value:"0",force:false,field:"Cloud Lock"},
         "#dim_1_10_custom": {value:"0",force:false,field:"Functionality"},
@@ -153,6 +165,37 @@
         "#dim_1_17_custom": {value:"0",force:false,field:"Software"},
     }
     let faultList = {
+        "Color" : [
+            "",
+            "Aura Blue",
+            "Beige",
+            "Black",
+            "Blue",
+            "Bronze",
+            "Brown",
+            "Copper",
+            "Gold",
+            "Green",
+            "Grey",
+            "Ice Blue",
+            "Icelandic Illusion",
+            "Jet Black",
+            "Lime",
+            "Mint",
+            "Orange",
+            "Pink",
+            "Purple",
+            "Red",
+            "Rose Gold",
+            "Silver",
+            "Special",
+            "Speckled Green",
+            "Teal",
+            "Transparent",
+            "Twilight",
+            "White",
+            "Yellow"
+        ],
         "Fault Description": [
             "",
             "0 value device",
@@ -395,12 +438,14 @@
         "Battery status",
         "Software",
         "Customized",
+        "Color",
     ]
     let accState = false; //accordion open/close state
     let cdwMapToggle = _G.getValue("var_cdwmap_master_toggle", true);
     let autofillCommentsToggle = _G.getValue("var_autofill_comments_toggle", false)
     let autofillIMEIToggle = _G.getValue("var_autofill_imei_toggle", true)
     let commentPHC = ""
+    let commentKeybind = ""
     let cdwInfoMap = {}
     let group
     let fakeComment = _G.getValue("var_cdwmap_fake_comment", ""); //debugging
@@ -411,8 +456,6 @@
         });
     }
     async function changeValuePHC(item,mappedFields) {
-        //console.log("########## CHANGE_VALUE_PHC ##########")
-        //TODO: the form appears but the contents of it have not, we're too fast, find a better hook point (observerCallback2)
         await waitOneFrame()
         await waitOneFrame()
         let s_target = item.field;
@@ -421,41 +464,47 @@
         let target_ele = null;
         for (let [key, val] of Object.entries(document.querySelectorAll("app-searchable-dropdown-field"))) {
             let label = val.getElementsByTagName("label")[0];
-            //console.log("finding ele",label.innerText,s_target)
             if (label.innerText.includes(s_target)){
                 target_ele = val;
                 break;
             }
         }
-        //console.log("checking")
+        if (s_target == "Color") {
+            let arr = Array.from(document.querySelectorAll("app-check-radio-group")[0].querySelectorAll("label"))
+            let isChecked = false;
+            arr.forEach(item => {
+                if (item.querySelector("input").checked == true) {
+                    isChecked = true;
+                }
+            })
+            if (isChecked == false ) {
+                arr.forEach(item => {
+                    if (item.innerText == s_src) {
+                        item.click()
+                    }
+                })
+            }
+
+        }
         if (!target_ele) {
-            //console.log("target ele not found",s_target)
             return false
         };
         if (target_ele.querySelector("ng-select").classList.contains("ng-select-disabled")) {
-            //console.log("ng-select is disabled")
             return false
         };
         if (!force && target_ele.getElementsByClassName("ng-value-icon").length > 0) {
-            //console.log("already contains value")
             return
         };
-        //console.log("OK passed")
         target_ele.getElementsByTagName("input")[0].value = s_src;
-        //console.log("setting field value: ", s_src)
         target_ele.getElementsByTagName("input")[0].dispatchEvent(new Event("input"));
-        //console.log("dispatch input")
         await waitOneFrame()//DONT REMOVE!!!
         if (target_ele.getElementsByClassName("scrollable-content").length == 0) return false;
         for (let [key2, val2] of Object.entries(target_ele.getElementsByClassName("scrollable-content")[0].children)) {
-            //console.log("str_comp:", val2.innerText, "===", s_src, val2.innerText == s_src)
             if (val2.innerText == s_src) {
-                //console.log("click event")
                 val2.dispatchEvent(new Event("click"));
                 return true;
             }
         }
-        //console.log("return last")
         return false;
     }
     let currentActiveObject
@@ -471,7 +520,7 @@
                 });
             }
             let commentQueue = (autofillCommentsToggle == true && currentActiveObject) ? currentActiveObject.comment : ""
-            let finalComment = (commentPHC + " " + commentQueue + " " + fakeComment).toLowerCase().split(" ") ;
+            let finalComment = (commentPHC + " " + commentQueue + " " + commentKeybind + " " + fakeComment).toLowerCase().split(" ") ;
             let mappedFields = [];
             let sortable = [];
             for (var cdw in cdwInfoMap) {
@@ -556,18 +605,6 @@
                     cancelable: true,
                     key: 'Escape',
                 }));
-                /*console.log("focus1",document.querySelectorAll("app-searchable-dropdown-field"))
-                for (let [key, val] of Object.entries(document.querySelectorAll("app-searchable-dropdown-field"))) {
-                    let label = val.getElementsByTagName("label")[0];
-                    console.log("focus2",label.innerText)
-                    //console.log("finding ele",label.innerText,s_target)
-                    if (label.innerText.includes("Fault Description")){
-                        let input = label.getElementsByTagName("input")[0]
-                        console.log("focus3")
-                        input.focus()
-                        break;
-                    }
-                }*/
             };
         },500)
     }
@@ -582,6 +619,58 @@
         }
         return result;
     }
+   function setupKeybindInput(element, callback) {
+       element.addEventListener("keydown", function (e) {
+           e.preventDefault();
+           if (e.key === "Escape") {
+               element.value = "";
+               if (callback) callback(null);
+               return;
+           }
+
+           let keys = [];
+           if (e.ctrlKey) keys.push("Ctrl");
+           if (e.shiftKey) keys.push("Shift");
+           if (e.altKey) keys.push("Alt");
+           if (e.metaKey) keys.push("Meta"); // CMD on Mac
+
+           let key = normalizeKey(e);
+
+           if (!isModifierKey(e.key)) {
+               keys.push(key);
+           }
+
+           let combo = keys.join("+");
+           element.value = combo;
+
+           if (callback) callback(combo);
+       });
+   }
+
+    function normalizeKey(e) {
+        if (e.code.startsWith("Numpad")) {
+            return e.code.replace("Numpad", "Numpad ");
+        }
+        if (e.key === " ") return "Space";
+        if (e.key.startsWith("Arrow")) {
+            return e.key.replace("Arrow", "");
+        }
+        if (e.key.length === 1) {
+            return e.key.toUpperCase();
+        }
+        return e.key;
+    }
+
+    function isModifierKey(key) {
+        return (
+            key === "Control" ||
+            key === "Shift" ||
+            key === "Alt" ||
+            key === "Meta"
+        );
+    }
+
+
     let group2;
     function addNewCDWMapping(idNum) {
         cdwInfoMap["var_cdw_map_" + idNum] = {}
@@ -590,7 +679,7 @@
         }, "display:inline-block; width:85px;",/[ ]+/gi)
         let fault;
 
-        let field = _G.createSettingDropdown(group2, "Field", [{id: 0,name: "Fault Description"}, {id: 1,name: "Additional Fault"}, {id: 2,name: "Additional Info"}, {id: 3,name: "Functionality"}, {id: 4,name: "Appearance"}, {id: 5,name: "Boxed"}, {id: 6,name: "Network Lock"}, {id: 7,name: "Cloud Lock"}, {id: 8,name: "Battery status"}, {id: 9,name: "Software"}, {id: 10,name: "Customized"}], "var_cdw_map_" + idNum + "_2", function(){
+        let field = _G.createSettingDropdown(group2, "Field", [{id: 0,name: "Fault Description"}, {id: 1,name: "Additional Fault"}, {id: 2,name: "Additional Info"}, {id: 3,name: "Functionality"}, {id: 4,name: "Appearance"}, {id: 5,name: "Boxed"}, {id: 6,name: "Network Lock"}, {id: 7,name: "Cloud Lock"}, {id: 8,name: "Battery status"}, {id: 9,name: "Software"}, {id: 10,name: "Customized"}, {id: 11,name: "Color"}], "var_cdw_map_" + idNum + "_2", function(){
             cdwInfoMap["var_cdw_map_" + idNum].field = fieldList[_G.getValue("var_cdw_map_" + idNum + "_2", 0)];
             let _field = fieldList[_G.getValue("var_cdw_map_" + idNum + "_2", 0)]
             let _flt = fault.getElementsByTagName("select")[0]
@@ -613,15 +702,15 @@
             }
             fault = _G.createSettingDropdown(group2, "Fault", _options, "var_cdw_map_" + idNum + "_3", function(){
                 cdwInfoMap["var_cdw_map_" + idNum].fault = _G.getValue("var_cdw_map_" + idNum + "_3", 0);
-            }, "display:inline-block; width:460px;")
+            }, "display:inline-block; width:450px;")
         }
 
 
 
 
-        let prio = _G.createSettingInput(group2, "Prio", "","number", "var_cdw_map_" + idNum + "_4", function(){
+        let prio = _G.createSettingInput(group2, "Priority", "","number", "var_cdw_map_" + idNum + "_4", function(){
             cdwInfoMap["var_cdw_map_" + idNum].prio = _G.getValue("var_cdw_map_" + idNum + "_4", 0);
-        }, "display:inline-block; width:105px;")
+        }, "display:inline-block; width:150px;")
         cdwInfoMap["var_cdw_map_" + idNum] = {
             search: _G.getValue("var_cdw_map_" + idNum + "_1", ""),
             field: fieldList[_G.getValue("var_cdw_map_" + idNum + "_2", 0)],
@@ -629,15 +718,23 @@
             prio: _G.getValue("var_cdw_map_" + idNum + "_4", 0),
             enabled: _G.getValue("var_cdw_map_" + idNum + "_5", false),
             force: _G.getValue("var_cdw_map_" + idNum + "_6", false),
+            keybind: _G.getValue("var_cdw_map_" + idNum + "_7", 0),
         }
 
         //toggle on/off state
         var toggleBtn = _G.createSettingToggleButton(group2, "", "var_cdw_map_" + idNum + "_5", function() {
             cdwInfoMap["var_cdw_map_" + idNum].enabled = _G.getValue("var_cdw_map_" + idNum + "_5", false);
-        }, true, "height:46.67px;top:-3px;")
+        }, true, "height:46.67px;top:-3px; width:100px")
         var overwriteBtn = _G.createSettingToggleButton(group2, "Overwrite", "var_cdw_map_" + idNum + "_6", function() {
             cdwInfoMap["var_cdw_map_" + idNum].force = _G.getValue("var_cdw_map_" + idNum + "_6", false);
-        }, true, "height:46.67px;top:-3px;")
+        }, true, "height:46.67px;top:-3px; width:150px")
+        let keybind = _G.createSettingInput(group2, "Keybind", "","text", "var_cdw_map_" + idNum + "_7", function(event){
+            cdwInfoMap["var_cdw_map_" + idNum].keybind = _G.getValue("var_cdw_map_" + idNum + "_7", "");
+        }, "display:inline-block; width:250px;")
+        setupKeybindInput( keybind.getElementsByTagName("input")[0], (combo) => {
+            console.log("Keybind:", combo);
+            keybind.getElementsByTagName("input")[0].dispatchEvent(new Event("change"));
+        });
         let btn = _G.createSettingButton(group2, "Delete", function(){
             //remove DOM elements
             _ID.remove();
@@ -647,6 +744,7 @@
             btn.remove();
             overwriteBtn.remove();
             toggleBtn.remove();
+            keybind.remove();
             //remove from local storage
             _G.deleteValue("var_cdw_map_" + idNum + "_1");
             _G.deleteValue("var_cdw_map_" + idNum + "_2");
@@ -654,6 +752,7 @@
             _G.deleteValue("var_cdw_map_" + idNum + "_4");
             _G.deleteValue("var_cdw_map_" + idNum + "_5");
             _G.deleteValue("var_cdw_map_" + idNum + "_6");
+            _G.deleteValue("var_cdw_map_" + idNum + "_7");
             delete cdwInfoMap["var_cdw_map_" + idNum]
         }, true, "height:46.67px;top:-3px;")
         btn.classList.replace("btn-primary","btn-danger")
@@ -666,7 +765,8 @@
     let itemStackList = []
     const mainUICreate = function() {
         group = _G.createSettingsGroup("PHC Dimension Mapper")
-
+        document.querySelector("#__rootSettings").children[0].style.maxWidth = "1600px"
+        document.querySelector("#__rootSettings").children[0].style.width = "1600px"
 
         _G.createSettingToggleButton(group, "PHC Comment Mapper", "var_cdwmap_master_toggle", function() {
             cdwMapToggle = _G.getValue("var_cdwmap_master_toggle", true)
@@ -695,7 +795,6 @@
         }, "display:inline-block; width:1230px;")
         _G.createSettingToggleButton(group, "Show Autofill Comments Field", "var_autofill_comments_toggle", function() {
             autofillCommentsToggle = _G.getValue("var_autofill_comments_toggle", false)
-            console.log("clicked",autofillCommentsToggle)
             sequencialInputStack = [];
             document.querySelector("#_q_tbody_content").innerHTML = '';
              for (const [key, value] of Object.entries(itemStackList)) {
@@ -705,7 +804,6 @@
         }, true)
         _G.createSettingToggleButton(group, "Show Autofill Identifier Field", "var_autofill_imei_toggle", function() {
             autofillIMEIToggle = _G.getValue("var_autofill_imei_toggle", true)
-            console.log("clicked",autofillIMEIToggle)
             document.querySelector("#_q_tbody_content").innerHTML = '';
             sequencialInputStack = []
              for (const [key, value] of Object.entries(itemStackList)) {
@@ -999,7 +1097,6 @@
                 btn2.title = ""
             }
         }
-        console.log("callback4")
         if (!itemStackList[0]) {
             queueRunState = false
             updateBtn1Visual();
@@ -1007,16 +1104,15 @@
             return
         };
         if (queueRunState == false) return;
-        
+
         if (input) {
             let obj = itemStackList[0]
             input.value = obj.uid
             input.dispatchEvent(new Event("input"));
         }
-        
+
     }
     const observerCallback5 = () => { //Runs when imei box appears on the page
-        console.log(itemStackList)
         document.querySelector("#_q_content_acc").style.transitionDuration = "0s"
         let btn1 = document.querySelector("#_q_button_id1")
         let btn2 = document.querySelector("#_q_button_id2")
@@ -1029,7 +1125,6 @@
                 btn2.title = ""
             }
         }
-        console.log("callback5")
         if (!itemStackList[0]) return;
         if (queueRunState == false) return;
         let obj = itemStackList.shift()
@@ -1071,14 +1166,47 @@
         }
         saveStateToDB();
         updateAccordionWindow();
-        
+
 
     }
-    
+    document.addEventListener('keydown', function (e) {
+      // event.code is consistent regardless of Num Lock state
+        if (document.querySelector("app-test-plan-form > form > app-searchable-dropdown-field:nth-child(1) > app-form-field") && !document.querySelector("ng-dropdown-panel")) {
+
+
+           const keys = [];
+
+           // Modifier keys
+           if (e.ctrlKey) keys.push("Ctrl");
+           if (e.shiftKey) keys.push("Shift");
+           if (e.altKey) keys.push("Alt");
+           if (e.metaKey) keys.push("Meta"); // Cmd on Mac
+
+           let key = normalizeKey(e);
+
+           // Avoid adding modifier twice
+           if (!isModifierKey(e.key)) {
+               keys.push(key);
+           }
+
+           const combo = keys.join("+");
+            if (combo == "" && combo.length > 0) return;
+            //
+            for (var cdw in cdwInfoMap) {
+                let item = cdwInfoMap[cdw].keybind
+                if (item) {
+                    if (combo == item) {
+                        e.preventDefault();
+                        changeValuePHC({field: cdwInfoMap[cdw].field, fault:cdwInfoMap[cdw].fault, force: true})
+                        return
+                    }
+                }
+
+            }
+        }
+    });
 
     const observerCallback3 = () => {
-        console.log(itemStackList)
-         console.log("callback3")
          if (!document.querySelector("#__StackQ")) {
              restoreState();
              currentActiveObject = undefined
@@ -1149,17 +1277,15 @@
                          ele.click()
                      };
                  }
-                 
+
              }
              document.querySelector("#_q_button_id3").onclick = function() {
-                 console.log(itemStackList)
                  let clipInfo = {"6853bffa3813591aefc5c335eaf00c27b1d19bad2f7e2496311da612cacd82c4":true,data:itemStackList}
                  let serializedStr = JSON.stringify(clipInfo);
                  navigator.clipboard.writeText(serializedStr);
              }
              document.querySelector("#_q_button_id4").onclick = function() {
                  navigator.clipboard.readText().then((clipText) => {
-                     console.log(clipText)
                      let parsedData = JSON.parse(clipText);
                      if (parsedData && parsedData["6853bffa3813591aefc5c335eaf00c27b1d19bad2f7e2496311da612cacd82c4"] == true){
                          itemStackList = {}
