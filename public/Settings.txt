@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Settings (RUBY)
 // @namespace    http://tampermonkey.net/
-// @version      1.0.4
+// @version      1.1.0
 // @description  try to take over the world!
 // @author       You
 // @include      /^https:\/\/r.*a.*tech\/?/
@@ -213,7 +213,7 @@ unsafeWindow.tmScripts.createSettingInput = function(group, body = "", vType = "
     });
     actualInput.addEventListener('change',function(e){
         DBsetValue(varID, actualInput.value)
-        if (clbk) clbk();
+        if (clbk) clbk(e);
     });
     return inputEle;
 }
@@ -333,6 +333,82 @@ unsafeWindow.tmScripts.getValue = function(key,defValue = null) {
     }
     return val;
 }
+    let settingAccordionTemplate = (data) => `
+    <app-order-info-custom id="${data.id}" style="border: 6px solid; border-image: linear-gradient(180deg, rgba(80,94,103,0.90), rgba(60,74,83,.00)) 1;">
+   <div class="order-info" style="background: #fff;">
+      <div class="order-info__header border-bottom border-2 d-flex align-items-center justify-content-between" style="cursor: pointer;padding: 16px 24px;" id="__accordion_click">
+         <h6 class="mb-0 fw-stronger">${data.header || ""}</h6>
+
+      </div>
+
+      <div class="order-info__content" style="transition: height 0.3s ease; height: 100px; display: block; overflow: hidden;" id="__accordion_content">
+         <app-job-order-details>
+            <div class="panel-body" style="padding-bottom:0px;">
+               <div role="tabpanel" class="tab-pane active">
+                  <fieldset class="form-horizontal" id="__accordion_body">
+                  ${data.content || ""}
+                  </fieldset>
+               </div>
+            </div>
+         </app-job-order-details>
+      </div>
+   </div>
+</app-order-info-custom>
+
+    `
+let accordionMem = {}
+function resizeAccordion(handle) {
+    let accordionEle = handle.querySelector("#__accordion_content");
+    if (!accordionEle) return;
+    accordionEle.style.height = handle.accordionState ? (accordionEle.children[0].offsetHeight + "px"): "0px";
+}
+unsafeWindow.tmScripts.createAccordion = function(data) {
+    console.log(accordionMem)
+    let template = settingAccordionTemplate(data)
+    let handle = document.querySelector("app-today-stats").parentElement.appendChild(fromHTML(template));
+    let clickHandle = handle.querySelector("#__accordion_click")
+    let contentBody = handle.querySelector("#__accordion_content")
+    contentBody.style.transitionDuration = "0s";
+    handle.accordionState = false;
+    if (accordionMem[data.id]) {
+        handle.accordionState = accordionMem[data.id].state
+    }
+    if (data.state) {
+        handle.accordionState = data.state
+    }
+    clickHandle.onclick = function() {
+        handle.accordionState = !handle.accordionState
+        accordionMem[data.id].state = handle.accordionState
+        contentBody.style.transitionDuration = "0.3s"
+        resizeAccordion(handle)
+    }
+    resizeAccordion(handle)
+    accordionMem[data.id] = accordionMem[data.id] || {}
+    accordionMem[data.id].state = handle.accordionState
+    return handle
+}
+
+unsafeWindow.tmScripts.resizeAccordion = function(handle) {
+    resizeAccordion(handle)
+}
+
+unsafeWindow.tmScripts.setContentAccordionHTML = function(handle,data,resize = true) {
+    if (!handle) return;
+    let contentBody = handle.querySelector("#__accordion_body")
+    if (!contentBody) return;
+    contentBody.innerHTML = "";
+    contentBody.innerHTML = data
+    if (resize) resizeAccordion(handle);
+}
+unsafeWindow.tmScripts.setContentAccordionElement = function(handle,data, resize = true) {
+    if (!handle) return;
+    let contentBody = handle.querySelector("#__accordion_body")
+    if (!contentBody) return;
+    contentBody.innerHTML = "";
+    let child = contentBody.appendChild(fromHTML(data))
+    if (resize) resizeAccordion(handle);
+    return child
+}
 unsafeWindow.tmScripts.deleteValue = function(key) {
     if (!key) return;
     GM_deleteValue(key)
@@ -401,6 +477,7 @@ function fromHTML(html) {
     }
     return result;
 }
+
     class AutoObserver {
         hooks = [];
         constructor() {}
