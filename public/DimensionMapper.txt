@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dimension automapper (RUBY)
 // @namespace    http://tampermonkey.net/
-// @version      1.2.0
+// @version      1.3.0
 // @description  try to take over the world!
 // @updateURL    https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/DimensionMapper.txt
 // @downloadURL  https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/DimensionMapper.txt
@@ -16,141 +16,140 @@
     'use strict';
     let _G = unsafeWindow.tmScripts;
     let isActive = false;
-    const modelLookupTemplate = `
-<app-order-info-custom id="__LookupMain2">
-    <div class="order-info" style="background: #fff;">
-        <div class="order-info__header border-bottom border-2 d-flex align-items-center justify-content-between" style="cursor:pointer;padding: 16px 24px;" id="_lkp_content_acc_click2">
-            <h6 class="mb-0 fw-stronger">Dimension Mapper</h6>
-        </div>
-        <div class="order-info__content" style="transition: height 0.3s ease; height: 0px; display: block; overflow: hidden;" id="_lkp_content_acc2">
-            <div style="display: flex;padding-top:20px;justify-content: center;">
-                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+    const newContent = `<div class="order-info__content">
+             <table class="table table-condensed" style="margin:0px;">
+                        <tbody>
+                           <tr>
+                              <td style="width:100%">
+
+                              </td>
+
+                               <td>
+                                 <button class="btn btn-primary" type="button" id="__mapper_apply" style="width:200px" title='Restores the list state from Clipboard'>
+                                    Manually Apply Values
+                                 </button>
+                               </td>
+                               <td>
+                                 <button class="btn btn-primary" type="button" id="__mapper_clear_all" style="width:200px" title=''>
+                                    Clear All
+                                 </button>
+                               </td>
+                           </tr>
+                        </tbody>
+                     </table>
+            <div style="display: flex;padding-top:12px;justify-content: center;">
+                <label class="col-sm-3" style="padding-left: 20px; padding-top: 10px;">
                     Color
                 </label>
                 <div style="width:100%">
                     <select id="dim_1_0_custom" class="form-control _dimField" style="max-width: 100%;" data-required="False" data-type="int"></select>
                 </div>
-                <div class="col-sm-1" style="padding-top:8px;padding-left:10px;min-width:50px;">
+                <div style="padding-top:8px;padding-left:10px;min-width:50px;">
                     <input type="checkbox" id="dim_1_0_custom_force" style="width: 27px; height: 27px;">
                 </div>
             </div>
             <div style="display: flex;justify-content: center;">
-                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+                <label class="col-sm-3" style="padding-left: 20px; padding-top: 10px;">
                     Fault Description
                 </label>
                 <div style="width:100%">
                     <select id="dim_1_1_custom" class="form-control _dimField" style="max-width: 100%;" data-required="False" data-type="int"></select>
                 </div>
-                <div class="col-sm-1" style="padding-top:8px;padding-left:10px;min-width:50px;">
+                <div style="padding-top:8px;padding-left:10px;min-width:50px;">
                     <input type="checkbox" id="dim_1_1_custom_force" style="width: 27px; height: 27px;">
                 </div>
             </div>
             <div style="display: flex;justify-content: center;">
-                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+                <label class="col-sm-3" style="padding-left: 20px; padding-top: 10px;">
                     Cloud Lock
                 </label>
                 <div style="width:100%">
                     <select id="dim_1_3_custom" class="form-control _dimField" style="max-width: 100%;" data-required="False" data-type="int"></select>
                 </div>
-                <div class="col-sm-1" style="padding-top:8px;padding-left:10px;min-width:50px;">
+                <div style="padding-top:8px;padding-left:10px;min-width:50px;">
                     <input type="checkbox" id="dim_1_3_custom_force" style="width: 27px; height: 27px;">
                 </div>
             </div>
 
             <div style="display: flex;justify-content: center;">
-                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+                <label class="col-sm-3" style="padding-left: 20px; padding-top: 10px;">
                     Appearance
                 </label>
                 <div style="width:100%">
                     <select id="dim_1_4_custom" class="form-control _dimField" style="max-width: 100%;" data-required="False" data-type="int"></select>
                 </div>
-                <div class="col-sm-1" style="padding-top:8px;padding-left:10px;min-width:50px;">
+                <div style="padding-top:8px;padding-left:10px;min-width:50px;">
                     <input type="checkbox" id="dim_1_4_custom_force" style="width: 27px; height: 27px;">
                 </div>
             </div>
             <div style="display: flex;justify-content: center;">
-                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+                <label class="col-sm-3" style="padding-left: 20px; padding-top: 10px;">
                     Functionality
                 </label>
                 <div style="width:100%">
                     <select id="dim_1_10_custom" class="form-control _dimField" style="max-width: 100%;" data-required="False" data-type="int"></select>
                 </div>
-                <div class="col-sm-1" style="padding-top:8px;padding-left:10px;min-width:50px;">
+                <div style="padding-top:8px;padding-left:10px;min-width:50px;">
                     <input type="checkbox" id="dim_1_10_custom_force" style="width: 27px; height: 27px;">
                 </div>
             </div>
             <div style="display: flex;justify-content: center;">
-                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+                <label class="col-sm-3" style="padding-left: 20px; padding-top: 10px;">
                     Network Lock
                 </label>
                 <div style="width:100%">
                     <select id="dim_1_11_custom" class="form-control _dimField" style="max-width: 100%" data-required="False" data-type="int"></select>
                 </div>
-                <div class="col-sm-1" style="padding-top:8px;padding-left:10px;min-width:50px;">
+                <div style="padding-top:8px;padding-left:10px;min-width:50px;">
                     <input type="checkbox" id="dim_1_11_custom_force" style="width: 27px; height: 27px;">
                 </div>
             </div>
             <div style="display: flex;justify-content: center;">
-                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+                <label class="col-sm-3" style="padding-left: 20px; padding-top: 10px;">
                     Software
                 </label>
                 <div style="width:100%">
                     <select id="dim_1_17_custom" class="form-control _dimField" style="max-width: 100%;" data-required="False" data-type="int"></select>
                 </div>
-                <div class="col-sm-1" style="padding-top:8px;padding-left:10px;min-width:50px;">
+                <div style="padding-top:8px;padding-left:10px;min-width:50px;">
                     <input type="checkbox" id="dim_1_17_custom_force" style="width: 27px; height: 27px;">
                 </div>
             </div>
             <div style="display: flex;justify-content: center;">
-                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+                <label class="col-sm-3" style="padding-left: 20px; padding-top: 10px;">
                     Customized
                 </label>
                 <div style="width:100%">
                     <select id="dim_1_22_custom" class="form-control _dimField" style="max-width: 100%;" data-required="False" data-type="int"></select>
                 </div>
-                <div class="col-sm-1" style="padding-top:8px;padding-left:10px;min-width:50px;">
+                <div style="padding-top:8px;padding-left:10px;min-width:50px;">
                     <input type="checkbox" id="dim_1_22_custom_force" style="width: 27px; height: 27px;">
                 </div>
             </div>
             <div style="display: flex;justify-content: center;">
-                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+                <label class="col-sm-3" style="padding-left: 20px; padding-top: 10px;">
                     Boxed
                 </label>
                 <div style="width:100%">
                     <select id="dim_1_27_custom" class="form-control _dimField" style="max-width: 100%;" data-required="False" data-type="int"></select>
                 </div>
-                <div class="col-sm-1" style="padding-top:8px;padding-left:10px;min-width:50px;">
+                <div style="padding-top:8px;padding-left:10px;min-width:50px;">
                     <input type="checkbox" id="dim_1_27_custom_force" style="width: 27px; height: 27px;">
                 </div>
             </div>
-            <div style="display: flex;justify-content: center;">
-                <label class="col-sm-3" style="padding-left: 24px; padding-top: 10px;">
+            <div style="display: flex;padding-bottom:12px;justify-content: center;">
+                <label class="col-sm-3" style="padding-left: 20px; padding-top: 10px;">
                     Battery status
                 </label>
                 <div style="width:100%">
                     <select id="dim_1_34_custom" class="form-control _dimField" style="max-width: 100%;" data-required="False" data-type="int"></select>
                 </div>
-                <div class="col-sm-1" style="padding-top:8px;padding-left:10px;min-width:50px;">
+                <div style="padding-top:8px;padding-left:10px;min-width:50px;">
                     <input type="checkbox" id="dim_1_34_custom_force" style="width: 27px; height: 27px;">
                 </div>
             </div>
-            <div style="padding: 16px;">
-                <button class="btn btn-primary" type="button" id="__mapper_apply">
-                    <div class="d-flex align-items-center">
-                        <div class="content" style="opacity: 1;"> Manually Apply Values </div>
-                    </div>
-                </button>
-                <button class="btn btn-primary" type="button" id="__mapper_clear_all">
-                    <div class="d-flex align-items-center">
-                        <div class="content" style="opacity: 1;"> Clear All </div>
-                    </div>
-                </button>
-            </div>
-        </div>
-    </div>
-</app-order-info-custom>
 
-`
+        </div>`
 
     let dimState = {
         "#dim_1_0_custom": {value:"0",force:false,field:"Color"},
@@ -445,7 +444,6 @@
     let autofillCommentsToggle = _G.getValue("var_autofill_comments_toggle", false)
     let autofillIMEIToggle = _G.getValue("var_autofill_imei_toggle", true)
     let commentPHC = ""
-    let commentKeybind = ""
     let cdwInfoMap = {}
     let group
     let fakeComment = _G.getValue("var_cdwmap_fake_comment", ""); //debugging
@@ -455,6 +453,8 @@
             requestAnimationFrame(() => resolve());
         });
     }
+
+
     async function changeValuePHC(item,mappedFields) {
         await waitOneFrame()
         await waitOneFrame()
@@ -492,8 +492,8 @@
         if (target_ele.querySelector("ng-select").classList.contains("ng-select-disabled")) {
             return false
         };
-        if (!force && target_ele.getElementsByClassName("ng-value-icon").length > 0) {
-            return
+        if (!force) {
+            if (target_ele.querySelector(".ng-has-value")) return;
         };
         target_ele.getElementsByTagName("input")[0].value = s_src;
         target_ele.getElementsByTagName("input")[0].dispatchEvent(new Event("input"));
@@ -520,7 +520,7 @@
                 });
             }
             let commentQueue = (autofillCommentsToggle == true && currentActiveObject) ? currentActiveObject.comment : ""
-            let finalComment = (commentPHC + " " + commentQueue + " " + commentKeybind + " " + fakeComment).toLowerCase().split(" ") ;
+            let finalComment = (commentPHC + " " + commentQueue + " " + fakeComment).toLowerCase().split(" ") ;
             let mappedFields = [];
             let sortable = [];
             for (var cdw in cdwInfoMap) {
@@ -544,54 +544,7 @@
         for (var indx in dimState) {
             let val = dimState[indx]
             if (val.value > 0) {
-                await changeValuePHC({field:val.field,fault:val.value},val.force);
-            }
-        }
-    }
-
-    const observerCallback = () => {
-        let injectLocation = document.querySelector(".order-info__header")?.parentElement.parentElement.parentElement
-        if (!injectLocation) return;
-        let lkpInstance = document.querySelector("#__LookupMain2");
-        if (!lkpInstance) {
-            injectLocation.append(fromHTML(modelLookupTemplate));
-            let accordionEle = document.querySelector("#_lkp_content_acc2");
-            accordionEle.style.height = accState ? "480px" : "0px";
-            let accordion = document.querySelector("#_lkp_content_acc_click2");
-            accordion.onclick = function() {
-                accState = !accState
-                accordionEle.style.height = accState ? "480px" : "0px";
-            }
-            let clearBtn = document.querySelector("#__mapper_clear_all");
-            clearBtn.onclick = function() {
-                for (let [key, val] of Object.entries(dimState)) {
-                    let dropdown = document.querySelector(key)
-                    let force = document.querySelector(key + "_force")
-                    dropdown.value = 0
-                    dimState[key].value = 0
-                    force.checked = false
-                    dimState[key].force = 0
-                }
-            }
-            let applyBtn = document.querySelector("#__mapper_apply");
-            applyBtn.onclick = function() {
-                updateFields();
-            }
-            //load cached values and eventlisteners back in after creating the dim mapper element
-            for (let [key, val] of Object.entries(dimState)) {
-                let dropdown = document.querySelector(key)
-                let force = document.querySelector(key + "_force")
-                for (let [key1, val1] of Object.entries(faultList[val.field])) {
-                    dropdown.add(new Option(val1,key1));
-                }
-                dropdown.value = val.value
-                force.checked = val.force
-                dropdown.onchange = function() {
-                    dimState[key].value = dropdown.value
-                }
-                force.onclick = function() {
-                    dimState[key].force = force.checked
-                }
+                await changeValuePHC({field:val.field,fault:val.value,force:val.force});
             }
         }
     }
@@ -619,8 +572,21 @@
         }
         return result;
     }
+     const CustomKeys = {
+        "Space":false,
+    };
+
+    let keyBuffer = {}
+    let keys = 0
+    document.addEventListener("keyup", (e) => {
+        if (CustomKeys[e.code] == undefined) return;
+        CustomKeys[e.code] = false;
+    });
    function setupKeybindInput(element, callback) {
        element.addEventListener("keydown", function (e) {
+           if (CustomKeys[e.code] != undefined) {
+               CustomKeys[e.code] = true;
+           }
            e.preventDefault();
            if (e.key === "Escape") {
                element.value = "";
@@ -633,7 +599,8 @@
            if (e.shiftKey) keys.push("Shift");
            if (e.altKey) keys.push("Alt");
            if (e.metaKey) keys.push("Meta"); // CMD on Mac
-
+           if (CustomKeys["Space"] == true) keys.push("Space")
+           if (keys.length > 0) e.preventDefault();
            let key = normalizeKey(e);
 
            if (!isModifierKey(e.key)) {
@@ -662,11 +629,13 @@
     }
 
     function isModifierKey(key) {
+        console.log("KEYCODE",key)
         return (
             key === "Control" ||
             key === "Shift" ||
             key === "Alt" ||
-            key === "Meta"
+            key === "Meta" ||
+            key === " "
         );
     }
 
@@ -845,12 +814,12 @@
             }, 150);
         }
     }
+
     let StackContainer = `
 <app-order-info-custom id="__StackQ" style="border: 6px solid; border-image: linear-gradient(180deg, rgba(80,94,103,0.90), rgba(60,74,83,.00)) 1;">
    <div class="order-info" style="background: #fff;">
       <div class="order-info__header border-bottom border-2 d-flex align-items-center justify-content-between" style="cursor: pointer;padding: 16px 24px;" id="_q_content_acc_click">
          <h6 class="mb-0 fw-stronger">Autofill Queue</h6>
-
       </div>
 
       <div class="order-info__content" style="transition: height 0.3s ease; height: 0px; display: block; overflow: hidden;" id="_q_content_acc">
@@ -862,7 +831,6 @@
                         <tbody>
                            <tr>
                               <td style="width:100%">
-
                                  <div _ngcontent-ng-c2633161230="" class="input-number"style="display:flex"><input type="number" class="form-control ng-untouched ng-pristine ng-valid" style="min-width:250px;max-width:250px" id="_q_search" placeholder="Number of Devices" step="1" min="0" style="display:inline-block" max="9007199254740991"><button style="display:inline-block" type="button" id="_q_btn_dec" class="btn btn-secondary"><i class="fa-solid fa-minus"></i></button><button style="inline-block" type="button" id="_q_btn_inc" class="btn btn-primary"><i _ngcontent-ng-c2633161230="" class="fa-solid fa-plus"></i></button></div>
                               </td>
                               <td>
@@ -897,11 +865,12 @@
                      <div class="" style="position: relative;">
                         <div style="display: block;transition: height 0.3s ease;  height: 0%; padding: 10px; overflow: auto " id="_q_tbody_content">
                         </div>
+                        <table class="table table-condensed" style="margin:0;padding:0"><tbody><tr><td style="width:100%;padding:0"></td></tr></tbody></table>
                      </div>
+
                   </fieldset>
                </div>
             </div>
-            <!----><!----><!----><!---->
          </app-job-order-details>
       </div>
    </div>
@@ -959,14 +928,6 @@
             element.style.color = "red"
         }
         return false;
-    }
-    function saveStateToDB() {
-        //GM_setValue("saveState", JSON.stringify(itemStackList))
-    }
-    function restoreState() {
-        //let data = GM_getValue("saveState")
-        //if (!data) return;
-        //itemStackList = JSON.parse(data);
     }
     function addToStackVisual(index){
         index = index -1
@@ -1086,17 +1047,6 @@
     const observerCallback4 = () => {
         let input = document.querySelector("app-search-with-filters > div > div > div > input")
         document.querySelector("#_q_content_acc").style.transitionDuration = "0s"
-        let btn1 = document.querySelector("#_q_button_id1")
-        let btn2 = document.querySelector("#_q_button_id2")
-        if (btn1) {
-            if (!queueModalStata) {
-                btn1.title = ""
-                btn2.title = ""
-            } else {
-                btn1.title = "Resets the page and starts the queue from the top"
-                btn2.title = ""
-            }
-        }
         if (!itemStackList[0]) {
             queueRunState = false
             updateBtn1Visual();
@@ -1114,23 +1064,12 @@
     }
     const observerCallback5 = () => { //Runs when imei box appears on the page
         document.querySelector("#_q_content_acc").style.transitionDuration = "0s"
-        let btn1 = document.querySelector("#_q_button_id1")
-        let btn2 = document.querySelector("#_q_button_id2")
-        if (btn1) {
-            if (queueModalStata) {
-                btn1.title = "Resets the page and stops taking items from the queue"
-                btn2.title = "Resets the page and pushes current item to the end of queue also takes the next item"
-            } else {
-                btn1.title = "Resets the page and starts the queue from the top"
-                btn2.title = ""
-            }
-        }
         if (!itemStackList[0]) return;
         if (queueRunState == false) return;
         let obj = itemStackList.shift()
         currentActiveObject = obj
         if (obj.imei != "") {
-            document.querySelector("app-device-info-card > div > div.device-info-card__header.border-bottom.border-2 > button").click() //clear if something was linked from the system (Apkudo devices have IMEI's linked to the Ruby ID)
+            document.querySelector("app-device-info-card > div > div.device-info-card__header.border-bottom.border-2 > button").click()
             let input = document.querySelector("#itemIdentifier")
             input.value = obj.imei
             input.dispatchEvent(new Event("input"));
@@ -1164,16 +1103,17 @@
             contentEle.style.padding = "10px"
             contentEle.style.paddingBottom = "0px"
         }
-        saveStateToDB();
         updateAccordionWindow();
 
 
     }
+
     document.addEventListener('keydown', function (e) {
       // event.code is consistent regardless of Num Lock state
         if (document.querySelector("app-test-plan-form > form > app-searchable-dropdown-field:nth-child(1) > app-form-field") && !document.querySelector("ng-dropdown-panel")) {
-
-
+            if (CustomKeys[e.code] != undefined) {
+               CustomKeys[e.code] = true;
+           }
            const keys = [];
 
            // Modifier keys
@@ -1181,13 +1121,14 @@
            if (e.shiftKey) keys.push("Shift");
            if (e.altKey) keys.push("Alt");
            if (e.metaKey) keys.push("Meta"); // Cmd on Mac
-
+           if (CustomKeys["Space"] == true) keys.push("Space")
+           if (keys.length > 0) e.preventDefault();
            let key = normalizeKey(e);
-
            // Avoid adding modifier twice
            if (!isModifierKey(e.key)) {
                keys.push(key);
            }
+           console.log(keys)
 
            const combo = keys.join("+");
             if (combo == "" && combo.length > 0) return;
@@ -1196,7 +1137,7 @@
                 let item = cdwInfoMap[cdw].keybind
                 if (item) {
                     if (combo == item) {
-                        e.preventDefault();
+                        
                         changeValuePHC({field: cdwInfoMap[cdw].field, fault:cdwInfoMap[cdw].fault, force: true})
                         return
                     }
@@ -1206,9 +1147,45 @@
         }
     });
 
+
+
     const observerCallback3 = () => {
+        if (!document.querySelector("#dim_mapper")) {
+            let handle = _G.createAccordion({id:"dim_mapper",header:"Dimension Mapper",content:newContent})
+            let clearBtn = handle.querySelector("#__mapper_clear_all");
+            clearBtn.onclick = function() {
+                for (let [key, val] of Object.entries(dimState)) {
+                    let dropdown = handle.querySelector(key)
+                    let force = handle.querySelector(key + "_force")
+                    dropdown.value = 0
+                    dimState[key].value = 0
+                    force.checked = false
+                    dimState[key].force = 0
+                }
+            }
+            let applyBtn = handle.querySelector("#__mapper_apply");
+            applyBtn.onclick = function() {
+                updateFields();
+                console.log(dimState)
+            }
+            //load cached values and eventlisteners back in after creating the dim mapper element
+            for (let [key, val] of Object.entries(dimState)) {
+                let dropdown = handle.querySelector(key)
+                let force = handle.querySelector(key + "_force")
+                for (let [key1, val1] of Object.entries(faultList[val.field])) {
+                    dropdown.add(new Option(val1,key1));
+                }
+                dropdown.value = val.value
+                force.checked = val.force
+                dropdown.onchange = function() {
+                    dimState[key].value = dropdown.value
+                }
+                force.onclick = function() {
+                    dimState[key].force = force.checked
+                }
+            }
+        }
          if (!document.querySelector("#__StackQ")) {
-             restoreState();
              currentActiveObject = undefined
              document.querySelector("app-today-stats").parentElement.appendChild(fromHTML(StackContainer));
              document.querySelector("#_q_content_acc").style.transitionDuration = "0s"
@@ -1296,7 +1273,6 @@
                              addToStackVisual(Number(key)+1)
                          }
                          updateAccordionWindow();
-                         saveStateToDB();
                      }
 
                  });
@@ -1306,8 +1282,6 @@
                  lockState = !lockState;
                  updateBtn2Visual();
              }
-
-             saveStateToDB();
          };
     }
     let pages = ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]
@@ -1317,7 +1291,6 @@
     _G.bind({onCreate: observerCallback5, search: "#itemIdentifier",                                      id: "_idDimMapperUpdate5",    href: pages})
     _G.bind({onCreate: observerCallback2, search: "app-test-plan-form > form > app-searchable-dropdown-field:nth-child(1) > app-form-field",                            id: "_idDimMapperUpdate2",    href: pages})
     _G.bind({onCreate: observerCallback4, search: "app-search-with-filters > div > div > div > input",    id: "_idDimMapperUpdate4",    href: pages})
-    _G.bind({onUpdate: observerCallback, onCreate:observerCallback, search: "app-device-info-and-checks", id: "_idDimMapperUpdate",     href: pages})
 
 })();
 
