@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dimension automapper (RUBY)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.0
+// @version      1.3.1
 // @description  try to take over the world!
 // @updateURL    https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/DimensionMapper.txt
 // @downloadURL  https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/DimensionMapper.txt
@@ -1150,41 +1150,7 @@
 
 
     const observerCallback3 = () => {
-        if (!document.querySelector("#dim_mapper")) {
-            let handle = _G.createAccordion({id:"dim_mapper",header:"Dimension Mapper",content:newContent})
-            let clearBtn = handle.querySelector("#__mapper_clear_all");
-            clearBtn.onclick = function() {
-                for (let [key, val] of Object.entries(dimState)) {
-                    let dropdown = handle.querySelector(key)
-                    let force = handle.querySelector(key + "_force")
-                    dropdown.value = 0
-                    dimState[key].value = 0
-                    force.checked = false
-                    dimState[key].force = 0
-                }
-            }
-            let applyBtn = handle.querySelector("#__mapper_apply");
-            applyBtn.onclick = function() {
-                updateFields();
-                console.log(dimState)
-            }
-            //load cached values and eventlisteners back in after creating the dim mapper element
-            for (let [key, val] of Object.entries(dimState)) {
-                let dropdown = handle.querySelector(key)
-                let force = handle.querySelector(key + "_force")
-                for (let [key1, val1] of Object.entries(faultList[val.field])) {
-                    dropdown.add(new Option(val1,key1));
-                }
-                dropdown.value = val.value
-                force.checked = val.force
-                dropdown.onchange = function() {
-                    dimState[key].value = dropdown.value
-                }
-                force.onclick = function() {
-                    dimState[key].force = force.checked
-                }
-            }
-        }
+
          if (!document.querySelector("#__StackQ")) {
              currentActiveObject = undefined
              document.querySelector("app-today-stats").parentElement.appendChild(fromHTML(StackContainer));
@@ -1283,6 +1249,41 @@
                  updateBtn2Visual();
              }
          };
+        if (!document.querySelector("#dim_mapper")) {
+            let handle = _G.createAccordion({id:"dim_mapper",header:"Dimension Mapper",content:newContent})
+            let clearBtn = handle.querySelector("#__mapper_clear_all");
+            clearBtn.onclick = function() {
+                for (let [key, val] of Object.entries(dimState)) {
+                    let dropdown = handle.querySelector(key)
+                    let force = handle.querySelector(key + "_force")
+                    dropdown.value = 0
+                    dimState[key].value = 0
+                    force.checked = false
+                    dimState[key].force = 0
+                }
+            }
+            let applyBtn = handle.querySelector("#__mapper_apply");
+            applyBtn.onclick = function() {
+                updateFields();
+                console.log(dimState)
+            }
+            //load cached values and eventlisteners back in after creating the dim mapper element
+            for (let [key, val] of Object.entries(dimState)) {
+                let dropdown = handle.querySelector(key)
+                let force = handle.querySelector(key + "_force")
+                for (let [key1, val1] of Object.entries(faultList[val.field])) {
+                    dropdown.add(new Option(val1,key1));
+                }
+                dropdown.value = val.value
+                force.checked = val.force
+                dropdown.onchange = function() {
+                    dimState[key].value = dropdown.value
+                }
+                force.onclick = function() {
+                    dimState[key].force = force.checked
+                }
+            }
+        }
     }
     let pages = ["de158ff49a8d4545a72da9ba1bdf65e67d0635fbc73a386199ea467c40638ca2","478d3f8b27adf42ee22b001ab35ec6ea87ac500a26a40e127f54ef62f4df2bda","f2513d2b767348c06ad7b5ef42f30a5cdb30ccac9529184331edbe7f601985bb"]
     _G.bind({onUpdate: menuStatusUpdate,  search: "app-root",                                             id: "_idDimMapperMenuStatus", href: ["*"]})
