@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Settings (RUBY)
 // @namespace    http://tampermonkey.net/
-// @version      1.1.0
+// @version      1.5.0
 // @description  try to take over the world!
 // @author       You
 // @include      /^https:\/\/r.*a.*tech\/?/
@@ -136,6 +136,7 @@ unsafeWindow.tmScripts.showToast = function({title = "",message = "",messageType
     }, time*1000);
 }
 let settingsPanel
+
 function createSettingsMain() {
     let settingsContainer = `
 <ngb-modal-window tabindex="-1" aria-modal="true" role="dialog" class="modal fade hide" id="__rootSettings">
@@ -160,6 +161,7 @@ function createSettingsMain() {
     settingsPanel = _E("body").appendChild(fromHTML(settingsContainer));
 
 }
+
 unsafeWindow.tmScripts.createSettingsGroup = function(header = "") {
     let groupTemplate = `
                      <div class="modal-content modal-body">
@@ -193,6 +195,30 @@ unsafeWindow.tmScripts.createSettingsSubGroup = function(group, header = "", sty
     return inputEle
 }
 
+unsafeWindow.tmScripts.createSettingTextArea = function(group, body = "", vType = "", iType = "text", varID, clbk, styleE = "",pattern=null) {
+    if (!group) return;
+    if (!varID) return;
+
+    let realVal = DBgetValue(varID,(iType == "text") ? "" : 0)
+    let inputTemplate = `
+        <div class="content" style = "` + styleE +`">
+        	<div class="input-group">` + (body == "" ? "" : `<span class="input-group-text">${body}</span>`) + `<textarea type="${iType}" style="height: 120px;" class="form-control ng-untouched ng-pristine ng-valid">` + (vType == "" ? "" : `<span class="input-group-text">${vType}</span></div>`) + `
+        </div>`
+    let inputEle = _E("#__formContent",group).appendChild(fromHTML(inputTemplate));
+    //if (!inline) inputEle.style.display = "inline-block";
+    let actualInput = inputEle.getElementsByTagName("textarea")[0]
+    actualInput.value = realVal
+    /*actualInput.addEventListener('input',function(e){
+        if (!pattern) return;
+        let badValues = pattern; //remove spaces
+        actualInput.value = actualInput.value.replace(badValues, '');
+    });*/
+    actualInput.addEventListener('change',function(e){
+        DBsetValue(varID, actualInput.value)
+        //if (clbk) clbk(e);
+    });
+    return inputEle;
+}
 unsafeWindow.tmScripts.createSettingInput = function(group, body = "", vType = "", iType = "text", varID, clbk, styleE = "",pattern=null) {
     if (!group) return;
     if (!varID) return;
@@ -297,7 +323,7 @@ unsafeWindow.tmScripts.updateGroupState = function(group,id) {
 let settingsBackdrop = `<ngb-modal-backdrop style="z-index: 1055;opacity:0.35;" aria-hidden="true" class="fade hide"id="__rootBackdrop"></ngb-modal-backdrop>`
 let settingsButton = `
     <app-main-menu-item _ngcontent-ng-c3980915389 _nghost-ng-c2920093653>
-    	<button _ngcontent-ng-c2920093653 type="button" class="btn text-start" tabindex="0" id="__settingsID", style="width:100%">
+    	<button _ngcontent-ng-c2891683609 type="button" class="btn text-start" tabindex="0" id="__settingsID", style="width:100%">
         	<div class="d-flex justify-content-start align-items-center">
             	<div style="flex-shrink: 0;height: 24px;width: 24px;" class="icon-container"><i class="fa-lg fa-light fa-code"></i></div>
             	<h6 style="margin-left: 12px;" class="mb-0 flex-grow-1 btn__label">Script Settings</h6>
@@ -462,6 +488,7 @@ const _updateSideBar = () => {
             toggleModal();
         }
     };
+    
 };
 function _E(ele, p = document) {
     return p.querySelector(ele)
@@ -576,9 +603,18 @@ function fromHTML(html) {
     }
     let _autoObserver = new AutoObserver();
     let lastLocation = ""
-    const mainLoop = function() {
-        _autoObserver.rebindHooks();
-    }
+    let scheduled = false;
+
+    const mainLoop = () => {
+        if (scheduled) return;
+
+        scheduled = true;
+
+        queueMicrotask(() => {
+            scheduled = false;
+            _autoObserver.rebindHooks();
+        });
+    };
     _G.tmScripts.bind = (data) => _autoObserver.bind(data);
     _G.tmScripts.unbind = (data) => _autoObserver.unbind(data);
     _G.tmScripts._hooks = () => {return _autoObserver.hooks};
