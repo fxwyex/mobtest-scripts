@@ -6,6 +6,8 @@
 // @author       You
 // @include      /^https:\/\/l.*xw.*tech\/?/
 // @include      /^https:\/\/r.*a.*tech\/?/
+// @updateURL    https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/AWHLabel.js
+// @downloadURL  https://raw.githubusercontent.com/fxwyex/mobtest-scripts/refs/heads/main/public/AWHLabel.js
 // @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
 // @grant    GM_setValue
 // @grant    GM_addValueChangeListener
@@ -55,7 +57,7 @@
 
         return output;
     }
-    const sharedVariable = "sharedVariableKey";
+    const sharedVariable = "awh_label_shared_var_key";
     let group
     let _labelOffsetX = 0
     let _labelOffsetY = 0
