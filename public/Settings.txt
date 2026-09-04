@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Settings (RUBY)
 // @namespace    http://tampermonkey.net/
-// @version      1.5.1
+// @version      1.5.2
 // @description  try to take over the world!
 // @author       You
 // @include      /^https:\/\/r.*a.*tech\/?/
@@ -23,6 +23,7 @@
 (function() {
     'use strict';
     let _G = unsafeWindow;
+
     unsafeWindow.tmScripts = {}
 unsafeWindow.tmScripts.sha256 = function sha256(ascii) {
     function rightRotate(value, amount) {
@@ -339,6 +340,48 @@ function DBgetValue(key, defValue = null) {
     }
     return val;
 }
+    let STYLE_ID = 'my-custom-order-info-style';
+    function updateStyles() {
+        let darkReader = document.documentElement.hasAttribute('data-darkreader-mode');
+        let style = document.getElementById(STYLE_ID);
+        if (!style) {
+            style = document.createElement('style');
+            style.id = STYLE_ID;
+            document.head.appendChild(style);
+        }
+
+        if (darkReader) {
+            style.textContent = `
+                app-order-info-custom {
+                    border: 6px solid !important;
+                    border-image: linear-gradient(
+                        180deg,
+                        rgba(80, 94, 103, 0.9),
+                        rgba(60, 74, 83, 0)
+                    ) 1 !important;
+                }
+            `;
+        } else {
+            style.textContent = `
+                app-order-info-custom {
+                    border: 6px solid !important;
+                    border-image: linear-gradient(
+                        180deg,
+
+                        rgba(220, 225, 230, 0.9),
+                        rgba(100, 110, 120, 0)
+                    ) 1 !important;
+                }
+            `;
+        }
+    }
+    updateStyles();
+    const observer = new MutationObserver(updateStyles);
+
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-darkreader-mode']
+    });
 unsafeWindow.tmScripts.DBgetValueAll = function() {
     return GM_listValues()
 }
@@ -360,7 +403,7 @@ unsafeWindow.tmScripts.getValue = function(key,defValue = null) {
     return val;
 }
     let settingAccordionTemplate = (data) => `
-    <app-order-info-custom id="${data.id}" style="border: 6px solid; border-image: linear-gradient(180deg, rgba(80,94,103,0.90), rgba(60,74,83,.00)) 1;">
+    <app-order-info-custom id="${data.id}" >
    <div class="order-info" style="background: #fff;">
       <div class="order-info__header border-bottom border-2 d-flex align-items-center justify-content-between" style="cursor: pointer;padding: 16px 24px;" id="__accordion_click">
          <h6 class="mb-0 fw-stronger">${data.header || ""}</h6>
