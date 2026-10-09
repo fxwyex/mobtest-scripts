@@ -1,8 +1,10 @@
 // ==UserScript==
 // @name         QOL changes
 // @namespace    http://tampermonkey.net/
-// @version      2.0.0
+// @version      2.0.1
 // @description
+// @updateURL    https://github.com/fxwyex/mobtest-scripts/raw/refs/heads/main/public/QOLChanges.user.js
+// @downloadURL  https://github.com/fxwyex/mobtest-scripts/raw/refs/heads/main/public/QOLChanges.user.js
 // @include      /^https:\/\/*r*.*a*.*tech\/?/
 // ==/UserScript==
 
