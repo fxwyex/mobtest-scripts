@@ -1,8 +1,10 @@
 // ==UserScript==
 // @name         Dimension Mapper (RSM)
 // @namespace    http://tampermonkey.net/
-// @version      1.0.0
+// @version      1.0.1
 // @description  Dimension presets, CDW comment mapping, and staged scan autofill.
+// @updateURL    https://github.com/fxwyex/mobtest-scripts/raw/refs/heads/main/public/DimensionMapper.user.js
+// @downloadURL  https://github.com/fxwyex/mobtest-scripts/raw/refs/heads/main/public/DimensionMapper.user.js
 // @include      /^https:\/\/r.*a.*tech\/?/
 // @grant        unsafeWindow
 // ==/UserScript==
@@ -898,7 +900,7 @@
         manager.registerFeature({
             id: FEATURE_ID,
             name: "Dimension Mapper",
-            version: "1.0.0",
+            version: "1.0.1",
             description: "Dimension profiles, CDW comment mapping and Autofill.",
             settings: {
                 phcEnabled: { type: "toggle", default: true },
