@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dimension Mapper (RSM)
 // @namespace    http://tampermonkey.net/
-// @version      1.0.1
+// @version      1.2.1
 // @description  Dimension presets, CDW comment mapping, and staged scan autofill.
 // @updateURL    https://github.com/fxwyex/mobtest-scripts/raw/refs/heads/main/public/DimensionMapper.user.js
 // @downloadURL  https://github.com/fxwyex/mobtest-scripts/raw/refs/heads/main/public/DimensionMapper.user.js
@@ -326,6 +326,7 @@
         "Appearance", "Boxed", "Network Lock", "Cloud Lock", "Battery status", "Software",
         "Customized", "Color", "Band Type", "Color Case", "Manual Datawipe"];
     const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const UUID_IN_TEXT = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
     const INLINE_LAYOUT_ID = "rsm-dimension-mapper-autofill";
 
     function waitForManager(callback) {
@@ -356,6 +357,7 @@
     let settings = null;
     let loadingProfile = false;
     let currentFedId = null;
+    let restoreState = null;
     const mappedFieldInstances = new WeakSet();
     const scanSessions = new WeakMap();
 
@@ -387,12 +389,48 @@
         return true;
     }
 
-    async function chooseField(name, value, overwrite = false) {
-        if (!value || value === "0") {
+    async function chooseProductName(value, overwrite, isCurrent) {
+        const field = document.querySelector("app-device-info-card")?.querySelector("app-item-name-field");
+        const select = field?.querySelector("ng-select");
+        const input = select?.querySelector("input");
+        if (!input || !value) {
             return false;
         }
-        if (name === "Color" || name === "Manual Datawipe") {
+        const selected = select.querySelector(".ng-value-label")?.textContent.trim();
+        if (selected === value) {
+            return true;
+        }
+        if (selected && !overwrite) {
+            return false;
+        }
+        setPageInput(input, value);
+        for (let attempt = 0; attempt < 30; attempt++) {
+            await nextFrame();
+            if (field.isConnected === false || (isCurrent && !isCurrent())) {
+                return false;
+            }
+            const option = Array.from(field.querySelector(".scrollable-content")?.children || []).find((item) => (item.innerText || item.textContent).trim() === value);
+            if (option) {
+                option.dispatchEvent(new Event("click", { bubbles: true }));
+                return true;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        return false;
+    }
+
+    async function chooseField(name, value, overwrite = false, kind = null, isCurrent = null) {
+        if (kind === "productName") {
+            return chooseProductName(value, overwrite, isCurrent);
+        }
+        if (kind === "radio" || (!kind && (name === "Color" || name === "Manual Datawipe"))) {
+            if (!value) {
+                return false;
+            }
             return chooseRadio(name, value, overwrite);
+        }
+        if ((!value || value === "0") && kind !== "dropdown") {
+            return false;
         }
         const field = findField("app-searchable-dropdown-field", name);
         const select = field?.querySelector("ng-select");
@@ -406,6 +444,16 @@
         }
         if (selected && !overwrite) {
             return false;
+        }
+        if (kind === "dropdown" && !value) {
+            if (selected) {
+                const clear = select.querySelector(".ng-clear-wrapper");
+                if (!clear) {
+                    return false;
+                }
+                clear.click();
+            }
+            return true;
         }
         setPageInput(input, value);
         await nextFrame();
@@ -456,6 +504,12 @@
     }
 
     async function applyMappings() {
+        const currentRow = queueActive() ? queueRows().getAt(0) : null;
+        const snapshot = settings.get("autofillRestoreFromSnapshot") && currentRow?.id === currentFedId ? savedFormSnapshot(currentRow) : null;
+        if (snapshot) {
+            await restoreSavedFields(currentRow, snapshot);
+            return;
+        }
         const matches = matchingCommentMappings();
         const filledFields = new Set();
 
@@ -468,6 +522,112 @@
             if (!filledFields.has(row.field) && await chooseField(row.field, row.fault, row.overwrite)) {
                 filledFields.add(row.field);
             }
+        }
+    }
+
+    function savedFormSnapshot(row) {
+        if (!row?.savedFormJson) {
+            return null;
+        }
+        try {
+            const snapshot = JSON.parse(row.savedFormJson);
+            return snapshot?.version === 1 && Array.isArray(snapshot.fields) ? snapshot : null;
+        } catch {
+            return null;
+        }
+    }
+
+    function currentRestoreState(row, card) {
+        if (!restoreState || restoreState.rowId !== row.id || restoreState.card !== card) {
+            restoreState = { rowId: row.id, card, form: null, fields: new Set(), productNamePending: false, productNameApplied: false };
+        }
+        return restoreState;
+    }
+
+    function captureCurrentForm(row) {
+        const card = document.querySelector("app-device-info-card");
+        if (!card) {
+            return;
+        }
+        const pageUid = document.querySelector("app-order-label")?.textContent;
+        if (pageUid && !pageUid.toLowerCase().includes(row.rubyId.trim().toLowerCase())) {
+            return;
+        }
+        const productName = card.querySelector("app-item-name-field .ng-value-label")?.textContent.trim() ?? "";
+        const form = card.querySelector("app-test-plan-form > form");
+        const fields = [];
+        for (const field of form?.querySelectorAll("app-searchable-dropdown-field") || []) {
+            const name = fieldLabel(field);
+            if (name) {
+                fields.push({ name, kind: "dropdown", value: field.querySelector(".ng-value-label")?.textContent.trim() ?? "" });
+            }
+        }
+        for (const field of form?.querySelectorAll("app-radio-buttons-field") || []) {
+            const name = fieldLabel(field);
+            if (!name) {
+                continue;
+            }
+            const selected = Array.from(field.querySelectorAll("label"))
+                .find((label) => label.querySelector('input[type="radio"]')?.checked);
+            fields.push({ name, kind: "radio", value: selected?.textContent.trim() ?? "" });
+        }
+        if (!form && !productName) {
+            return;
+        }
+        return JSON.stringify({ version: 1, productName, fields });
+    }
+
+    async function restoreSavedFields(row, snapshot) {
+        const card = document.querySelector("app-device-info-card");
+        const form = card?.querySelector("app-test-plan-form > form");
+        if (!form) {
+            return;
+        }
+        const state = currentRestoreState(row, card);
+        if (state.form !== form) {
+            state.form = form;
+            state.fields.clear();
+        }
+        for (const field of snapshot.fields) {
+            if (currentFedId !== row.id || state !== restoreState || form.isConnected === false) {
+                return;
+            }
+            if (!field || typeof field.name !== "string" || typeof field.value !== "string" ||
+                !["dropdown", "radio"].includes(field.kind)) {
+                continue;
+            }
+            const key = `${field.kind}:${field.name}`;
+            if (state.fields.has(key)) {
+                continue;
+            }
+            state.fields.add(key);
+            if (!await chooseField(field.name, field.value, true, field.kind)) {
+                state.fields.delete(key);
+            }
+        }
+    }
+
+    async function restoreProductName() {
+        const row = queueActive() ? queueRows().getAt(0) : null;
+        const snapshot = row?.id === currentFedId ? savedFormSnapshot(row) : null;
+        if (!snapshot?.productName) {
+            return;
+        }
+        const card = document.querySelector("app-device-info-card");
+        const field = card?.querySelector("app-item-name-field");
+        if (!field) {
+            return;
+        }
+        const state = currentRestoreState(row, card);
+        if (state.productNameApplied || state.productNamePending) {
+            return;
+        }
+        state.productNamePending = true;
+        try {
+            state.productNameApplied = await chooseField("Name", snapshot.productName, true, "productName",
+                () => currentFedId === row.id && state === restoreState);
+        } finally {
+            state.productNamePending = false;
         }
     }
 
@@ -514,15 +674,66 @@
         queueRows().addMultiple(Array.from({ length: count }, (_, index) => ({ rowNum: index + 1 })));
     }
 
+    function currentPageDevice() {
+        const uuid = document.querySelector("app-order-label")?.textContent.match(UUID_IN_TEXT)?.[0];
+        if (!uuid) {
+            return null;
+        }
+        return { uuid, identifier: document.querySelector("#itemIdentifier")?.value.trim() ?? "" };
+    }
+
+    function matchingDeviceIndex(rows, device) {
+        if (!device) {
+            return -1;
+        }
+        return rows.findIndex((row) => row.rubyId.trim().toLowerCase() === device.uuid.toLowerCase() &&
+            row.identifier.trim().toLowerCase() === device.identifier.toLowerCase());
+    }
+    function getValuesString(data) {
+        if (typeof data === "string") {
+            data = JSON.parse(data);
+        }
+
+        return data.fields
+            .map(field => field.value)
+            .filter(value => typeof value === "string" && value.trim() !== "")
+            .join(" / ");
+    }
+    function saveCurrentDevice() {
+        const device = currentPageDevice();
+        if (!device) {
+            console.warn("[Dimension Mapper] Load a device before saving it to the autofill queue.");
+            return false;
+        }
+        const { uuid, identifier } = device;
+        const savedFormJson = captureCurrentForm({ rubyId: uuid });
+        const rows = queueRows().list();
+        const index = matchingDeviceIndex(rows, device);
+        const resultText = getValuesString(savedFormJson)
+        if (index < 0) {
+            queueRows().add({ rowNum: String(rows.length + 1), rubyId: uuid, identifier, savedFormJson: savedFormJson || "", savedFormJsonText: resultText });
+            return true;
+        }
+        const [existing] = rows.splice(index, 1);
+        rows.push({ ...existing, rubyId: uuid, identifier, savedFormJson: savedFormJson || existing.savedFormJson, savedFormJsonText: resultText });
+        settings.set("autofill", rows);
+        if (index === 0 && rows.length > 1 && queueActive() && currentFedId === existing.id) {
+            feedAfterQueueChange();
+        }
+        return true;
+    }
+
     function onActiveChange(active) {
         if (!active) {
             currentFedId = null;
+            restoreState = null;
             return;
         }
         if (!feature.isEnabled()) {
             return;
         }
         currentFedId = null;
+        restoreState = null;
         const rows = queueRows().list();
         const kept = rows.filter((row) => row.rubyId.trim() || row.identifier.trim() || row.comment.trim());
         if (kept.length !== rows.length) {
@@ -558,6 +769,9 @@
         if (identifier) {
             setPageInput(input, identifier);
         }
+        if (settings.get("autofillRestoreFromSnapshot") && savedFormSnapshot(first)) {
+            restoreProductName().catch((error) => console.error("[Dimension Mapper] Product name restore failed", error));
+        }
     }
 
     function savedDeviceFromRequest(body) {
@@ -577,18 +791,22 @@
     }
 
     function onSave(context) {
+        console.log("SAVE1")
         if (!location.pathname.startsWith("/testing/") || !context.success) {
             return;
         }
+        console.log("SAVE2")
         const searchAllRows = settings.get("autofillRemoveReceivedAnywhere") === true;
         if (!queueActive() && !searchAllRows) {
             return;
         }
+        console.log("SAVE3")
         const saved = savedDeviceFromRequest(context.requestBody);
-        const uuid = String(saved?.inventoryItemUid || "").trim().toLowerCase();
+        const uuid = String(saved?.inventoryItemUid || saved?.updateTestItem?.uniqueIdentifier || "").trim().toLowerCase();
         if (!uuid) {
             return;
         }
+        console.log("SAVE4")
         const rows = queueRows();
         let matchingIndex = -1;
         if (searchAllRows) {
@@ -596,20 +814,26 @@
         } else if (rows.getAt(0)?.rubyId.trim().toLowerCase() === uuid) {
             matchingIndex = 0;
         }
+        console.log("SAVE5")
         if (matchingIndex < 0) {
             return;
         }
+        console.log("SAVE6666")
         rows.removeAt(matchingIndex);
         if (matchingIndex === 0) {
             currentFedId = null;
+            restoreState = null;
         }
+        console.log("SAVE7")
         if (queueActive() && !rows.getAt(0)) {
             settings.set("autofillStartStop", false);
         }
+        console.log("SAVE8")
     }
 
     function feedAfterQueueChange() {
         currentFedId = null;
+        restoreState = null;
         const clearButton = document.querySelector("app-order-label button");
         if (clearButton) {
             clearButton.click();
@@ -621,7 +845,20 @@
     function skipRow(id) {
         const rows = queueRows().list();
         const index = rows.findIndex((row) => row.id === id);
-        if (index < 0 || rows.length < 2) {
+        if (index < 0) {
+            return;
+        }
+        const matchingIndex = matchingDeviceIndex(rows, currentPageDevice());
+        const savedFormJson = matchingIndex >= 0 ? captureCurrentForm(rows[matchingIndex]) : null;
+
+        if (savedFormJson) {
+            const textResult = getValuesString(savedFormJson)
+            rows[matchingIndex] = { ...rows[matchingIndex], savedFormJson,savedFormJsonText:textResult };
+        }
+        if (rows.length < 2) {
+            if (savedFormJson) {
+                settings.set("autofill", rows);
+            }
             return;
         }
         const [skipped] = rows.splice(index, 1);
@@ -655,8 +892,7 @@
                 next.focus();
                 return;
             }
-            row = row.nextElementSibling?.classList.contains("rsm-v2-repeater-item")
-                ? row.nextElementSibling : null;
+            row = row.nextElementSibling?.classList.contains("rsm-v2-repeater-item") ? row.nextElementSibling : null;
             input = null;
         }
     }
@@ -693,9 +929,7 @@
             focusNextScanInput(input);
         }, 100);
     }
-    const stopMiddlePreview = () => {
-        host?.RSM?.getFeature("dynamic-mapping-rows-demo")?.ui.mountsById.get("rsm-dimension-mapper-autofill")?.controller.refreshVisibility()
-    }
+
     const inlineSettingsLayout = {
         id: INLINE_LAYOUT_ID, type: "panel", label: "Autofill", collapsible: true,
         children: [
@@ -710,12 +944,14 @@
                         setting: "autofillStartStop", control: "toggleButton",
                         onLabel: "Active: On", offLabel: "Active: Off", size: "200px"
                     },
+                    { type: "button", label: "Save current", onClick: saveCurrentDevice },
                     { setting: "autofillShowAdditionalSettings", control: "toggleButton", onLabel: "Show Settings: On", offLabel: "Show Settings: Off", size: "200px" },
                 ]
             },
             { type: "divider", visibleWhen: { setting: "autofillShowAdditionalSettings", equals: true } },
             { setting: "autofillRemoveReceivedAnywhere", control: "toggleButton", onLabel: "Remove received from any row: On", offLabel: "Remove received from any row: Off", size: "350px", visibleWhen: { setting: "autofillShowAdditionalSettings", equals: true } },
             { setting: "autofillShowComments", control: "toggleButton", onLabel: "Show Comments: On", offLabel: "Show Comments: Off", size: "350px", visibleWhen: { setting: "autofillShowAdditionalSettings", equals: true } },
+            { setting: "autofillRestoreFromSnapshot", control: "toggleButton", onLabel: "Restore from snapshot: On", offLabel: "Restore from snapshot: Off", size: "350px", visibleWhen: { setting: "autofillShowAdditionalSettings", equals: true } },
             { setting: "hideRemoveButtonWhenActive", control: "toggleButton", onLabel: "Hide remove button when active: On", offLabel: "Hide remove button when active: Off", size: "350px", visibleWhen: { setting: "autofillShowAdditionalSettings", equals: true } },
             { type: "divider" },
             {
@@ -724,10 +960,15 @@
                         type: "horizontalGroup", children: [
                             { setting: "rowNum", type: "dynamicLabel", alignText: "center", size: "36px" },
                             { setting: "rubyId", control: "textInput", placeholder: "UUID", size: "100%", validationFeedback: { regex: UUID_PATTERN }, onInput: onScan },
-                            { setting: "identifier", control: "textInput", placeholder: "Serial / IMEI", size: "100%", onInput: onScan },
-                            { setting: "comment", control: "textInput", placeholder: "Optional comment", size: "100%", visibleWhen: { setting: "autofillShowComments", equals: true } },
+                            { setting: "identifier", control: "textInput", placeholder: "Serial / IMEI", size: "50%", onInput: onScan },
+                            { setting: "savedFormJsonText", control: "textInput", placeholder: "Comment / Info", size: "150%", visibleWhen: { setting: "autofillShowComments", equals: true } },
                             { type: "button", label: "Skip", onClick({ row }) { skipRow(row.id); } },
-                            { id: "autofillRemoveBtn", type: "button", label: "Remove", buttonColor: "#ff5555", visibleWhen: () => {return !(settings.get("hideRemoveButtonWhenActive")==true&&settings.get("autofillStartStop")==true)}, onClick({ row }) { removeRow(row.id); }}
+                            {
+                                id: "autofillRemoveBtn", type: "button", label: "Remove", buttonColor: "#ff5555",
+                                watchSettings: ["hideRemoveButtonWhenActive", "autofillStartStop"],
+                                visibleWhen: () => !(settings.get("hideRemoveButtonWhenActive") && settings.get("autofillStartStop")),
+                                onClick({ row }) { removeRow(row.id); }
+                            }
                         ]
                     }
                 ]
@@ -891,7 +1132,9 @@
             callback: onSave
         });
     }
-
+    function isTestingPage() {
+        return location.pathname.includes("/testing") && !location.pathname.includes("/internal") && !location.pathname.includes("/quick-check")
+    }
     function registerFeature(manager) {
         if (manager.getFeature?.(FEATURE_ID)) {
             console.warn("[Dimension Mapper] Another script already registered this feature ID. Disable the older script.");
@@ -900,18 +1143,18 @@
         manager.registerFeature({
             id: FEATURE_ID,
             name: "Dimension Mapper",
-            version: "1.0.1",
+            version: "1.2.1",
             description: "Dimension profiles, CDW comment mapping and Autofill.",
             settings: {
                 phcEnabled: { type: "toggle", default: true },
                 mappings: {
                     type: "collection", default: [],
-                    headers: ["Match IDs", "Field", "Fault", "Priority", "Active", "Overwrite", "Note", "Order", "Remove"],bindingIds: ["dimension-mapper-inline"],
+                    headers: ["Match IDs", "Field", "Fault", "Priority", "Active", "Overwrite", "Note", "Order", "Remove"], bindingIds: ["dimension-mapper-inline"],
                     item: {
                         matchId: { type: "text", default: "" },
                         field: {
                             type: "dropdown", default: "", options: FIELD_NAMES,
-                            onChange(value, previous, { id }) { if (value !== previous) {settings.collection("mappings").set(id, "fault", "")} }
+                            onChange(value, previous, { id }) { if (value !== previous) { settings.collection("mappings").set(id, "fault", "") } }
                         },
                         fault: { type: "dropdown", default: "", options: ({ item }) => optionsFor(item?.field, "Choose a fault") },
                         priority: { type: "slider", default: 0, min: 0, max: 9999, step: 1 },
@@ -929,10 +1172,10 @@
                     }
                 },
                 defaultProfileId: {
-                    type: "dropdown",bindingIds: ["dimension-mapper-inline"], default: "", options: [{ value: "", label: "No default profile" }]
+                    type: "dropdown", bindingIds: ["dimension-mapper-inline"], default: "", options: [{ value: "", label: "No default profile" }]
                 },
                 dimCollection: {
-                    type: "collection", default: [], headers: ["Field", "Value", "Overwrite", "Remove"],bindingIds: ["dimension-mapper-inline"],
+                    type: "collection", default: [], headers: ["Field", "Value", "Overwrite", "Remove"], bindingIds: ["dimension-mapper-inline"],
                     item: {
                         dimField: {
                             type: "dropdown", default: "", options: FIELD_NAMES,
@@ -948,23 +1191,25 @@
                 },
                 autofillAddCount: { type: "text", default: "10" },
                 autofillShowComments: { type: "toggle", default: true },
-                hideRemoveButtonWhenActive: { type: "toggle", default: true, onChange: stopMiddlePreview },
+                autofillRestoreFromSnapshot: { type: "toggle", default: false },
+                hideRemoveButtonWhenActive: { type: "toggle", default: true },
                 autofillShowAdditionalSettings: { type: "toggle", default: false },
                 autofillRemoveReceivedAnywhere: { type: "toggle", default: true },
                 autofillStartStop: {
                     type: "toggle", default: false, onChange(value) {
-                        stopMiddlePreview();
                         onActiveChange(value);
                     }
                 },
                 autofill: {
                     type: "collection", default: [],
-                    headers: ["#", "UUID", "Identifier", "Comment", "", ""],
+                    headers: ["#", "UUID", "Identifier", "Info", "", ""],
                     item: {
                         rowNum: { type: "text", default: "0" },
                         rubyId: { type: "text", default: "" },
                         identifier: { type: "text", default: "" },
-                        comment: { type: "text", default: "" }
+                        comment: { type: "text", default: "" },
+                        savedFormJson: { type: "text", default: "" },
+                        savedFormJsonText: { type: "text", default: "" }
                     }
                 }
             },
@@ -982,7 +1227,7 @@
                     id: "dimension-mapper-form-field",
                     page: {
                         urlOrigin: ["0750e4c04e76d7e6b04dffb0f4fbb04159936b9bf7a32884b0596de0c7786d0c"],
-                        check: () => location.pathname.includes("/testing")
+                        check: isTestingPage
                     },
                     selector: "app-test-plan-form > form > app-searchable-dropdown-field:nth-child(1) > app-form-field",
                     events: ["create"],
@@ -992,7 +1237,7 @@
                     id: "dimension-mapper-inline",
                     page: {
                         urlOrigin: ["0750e4c04e76d7e6b04dffb0f4fbb04159936b9bf7a32884b0596de0c7786d0c"],
-                        check: () => location.pathname.includes("/testing")
+                        check: isTestingPage
                     },
                     selector: "app-today-stats",
                     events: ["create"],
@@ -1002,7 +1247,7 @@
                     id: "dimension-mapper-uuid",
                     page: {
                         urlOrigin: ["0750e4c04e76d7e6b04dffb0f4fbb04159936b9bf7a32884b0596de0c7786d0c"],
-                        check: () => location.pathname.includes("/testing")
+                        check: isTestingPage
                     },
                     selector: "app-search-with-filters input",
                     events: ["create"],
@@ -1012,11 +1257,25 @@
                     id: "dimension-mapper-identifier",
                     page: {
                         urlOrigin: ["0750e4c04e76d7e6b04dffb0f4fbb04159936b9bf7a32884b0596de0c7786d0c"],
-                        check: () => location.pathname.includes("/testing")
+                        check: isTestingPage
                     },
                     selector: "#itemIdentifier",
                     events: ["create"],
                     onCreate: fillIdentifier
+                },
+                {
+                    id: "dimension-mapper-product-name",
+                    page: {
+                        urlOrigin: ["0750e4c04e76d7e6b04dffb0f4fbb04159936b9bf7a32884b0596de0c7786d0c"],
+                        check: isTestingPage
+                    },
+                    selector: "app-item-name-field",
+                    events: ["create"],
+                    onCreate() {
+                        if (settings.get("autofillRestoreFromSnapshot")) {
+                            restoreProductName().catch((error) => console.error("[Dimension Mapper] Product name restore failed", error));
+                        }
+                    }
                 }
             ]
         });
