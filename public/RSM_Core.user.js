@@ -1,8 +1,10 @@
 // ==UserScript==
 // @name         Script Manager Core (RSM)
 // @namespace    http://tampermonkey.net/
-// @version      2.0.0
+// @version      2.0.1
 // @description  Generic feature manager for Angular and non-Angular sites
+// @updateURL    https://github.com/fxwyex/mobtest-scripts/raw/refs/heads/main/public/RSM_Core.user.js
+// @downloadURL  https://github.com/fxwyex/mobtest-scripts/raw/refs/heads/main/public/RSM_Core.user.js
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_deleteValue
@@ -14,7 +16,7 @@
     "use strict";
     const host = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
     const MANAGER_FEATURE_ID = "rsm-core";
-    const MANAGER_VERSION = "2.0.0";
+    const MANAGER_VERSION = "2.0.1";
     const STORAGE_PREFIX = "rsm.v2.";
     const DEBUG_KEY = `${STORAGE_PREFIX}debug`;
     const DEBUG_CATEGORIES_KEY = `${DEBUG_KEY}.categories`;
