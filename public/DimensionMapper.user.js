@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dimension Mapper (RSM)
 // @namespace    http://tampermonkey.net/
-// @version      1.2.1
+// @version      1.3.0
 // @description  Dimension presets, CDW comment mapping, and staged scan autofill.
 // @updateURL    https://github.com/fxwyex/mobtest-scripts/raw/refs/heads/main/public/DimensionMapper.user.js
 // @downloadURL  https://github.com/fxwyex/mobtest-scripts/raw/refs/heads/main/public/DimensionMapper.user.js
@@ -358,8 +358,36 @@
     let loadingProfile = false;
     let currentFedId = null;
     let restoreState = null;
+    let autofillAnchor = null;
     const mappedFieldInstances = new WeakSet();
     const scanSessions = new WeakMap();
+
+    function renderAutofillOutline() {
+        if (!queueActive() || !currentFedId) {
+            return;
+        }
+        const element = feature.ui.getHandle("autofill-repeater").getRowElement(currentFedId);
+        if (!element) {
+            return;
+        }
+        element.style.outline = "2px solid var(--rsm-v2-accent)";
+        element.style.outlineOffset = "-2px";
+        // The manager calls this before the next onRender and when the mount is removed.
+        return () => {
+            element.style.outline = "";
+            element.style.outlineOffset = "";
+        };
+    }
+
+    function setCurrentFedId(id) {
+        if (currentFedId === id) {
+            return;
+        }
+        currentFedId = id;
+        if (feature.ui.getMount(INLINE_LAYOUT_ID)) {
+            feature.ui.getHandle("autofill-repeater").refreshOnRenderCallback();
+        }
+    }
 
     function fieldLabel(element) {
         return element.querySelector(".form-field-label label")?.textContent.replace(/\s*\*\s*$/, "").trim() || "";
@@ -657,7 +685,26 @@
     }
 
     function queueActive() {
-        return settings.get("autofillStartStop") === true;
+        return settings.get("autofillEnabled") === true && settings.get("autofillStartStop") === true;
+    }
+
+    function syncAutofillMount() {
+        if (settings.get("autofillShowMount") && feature.isEnabled() &&
+            autofillAnchor && autofillAnchor.isConnected !== false) {
+            feature.ui.mount(inlineSettingsLayout, { anchor: autofillAnchor, position: "before" });
+        } else if (feature.ui.getMount(INLINE_LAYOUT_ID)) {
+            feature.ui.unmount(INLINE_LAYOUT_ID);
+        }
+    }
+
+    function onAutofillEnabledChange(enabled) {
+        if (!enabled && settings.get("autofillStartStop")) {
+            settings.set("autofillStartStop", false);
+        }
+        if (!enabled) {
+            setCurrentFedId(null);
+            restoreState = null;
+        }
     }
 
     function adjustRowCount(delta) {
@@ -709,13 +756,14 @@
         const savedFormJson = captureCurrentForm({ rubyId: uuid });
         const rows = queueRows().list();
         const index = matchingDeviceIndex(rows, device);
-        const resultText = getValuesString(savedFormJson)
+        const resultText = savedFormJson ? getValuesString(savedFormJson) : "";
         if (index < 0) {
             queueRows().add({ rowNum: String(rows.length + 1), rubyId: uuid, identifier, savedFormJson: savedFormJson || "", savedFormJsonText: resultText });
             return true;
         }
         const [existing] = rows.splice(index, 1);
-        rows.push({ ...existing, rubyId: uuid, identifier, savedFormJson: savedFormJson || existing.savedFormJson, savedFormJsonText: resultText });
+        rows.push({ ...existing, rubyId: uuid, identifier, savedFormJson: savedFormJson || existing.savedFormJson,
+            savedFormJsonText: savedFormJson ? resultText : existing.savedFormJsonText });
         settings.set("autofill", rows);
         if (index === 0 && rows.length > 1 && queueActive() && currentFedId === existing.id) {
             feedAfterQueueChange();
@@ -725,14 +773,18 @@
 
     function onActiveChange(active) {
         if (!active) {
-            currentFedId = null;
+            setCurrentFedId(null);
             restoreState = null;
+            return;
+        }
+        if (!settings.get("autofillEnabled")) {
+            settings.set("autofillStartStop", false);
             return;
         }
         if (!feature.isEnabled()) {
             return;
         }
-        currentFedId = null;
+        setCurrentFedId(null);
         restoreState = null;
         const rows = queueRows().list();
         const kept = rows.filter((row) => row.rubyId.trim() || row.identifier.trim() || row.comment.trim());
@@ -755,7 +807,7 @@
         const first = queueRows().getAt(0);
         if (first && UUID_PATTERN.test(first.rubyId.trim())) {
             setPageInput(input, first.rubyId.trim());
-            currentFedId = first.id;
+            setCurrentFedId(first.id);
         }
     }
 
@@ -791,22 +843,18 @@
     }
 
     function onSave(context) {
-        console.log("SAVE1")
-        if (!location.pathname.startsWith("/testing/") || !context.success) {
+        if (!settings.get("autofillEnabled") || !location.pathname.startsWith("/testing/") || !context.success) {
             return;
         }
-        console.log("SAVE2")
         const searchAllRows = settings.get("autofillRemoveReceivedAnywhere") === true;
         if (!queueActive() && !searchAllRows) {
             return;
         }
-        console.log("SAVE3")
         const saved = savedDeviceFromRequest(context.requestBody);
         const uuid = String(saved?.inventoryItemUid || saved?.updateTestItem?.uniqueIdentifier || "").trim().toLowerCase();
         if (!uuid) {
             return;
         }
-        console.log("SAVE4")
         const rows = queueRows();
         let matchingIndex = -1;
         if (searchAllRows) {
@@ -814,25 +862,21 @@
         } else if (rows.getAt(0)?.rubyId.trim().toLowerCase() === uuid) {
             matchingIndex = 0;
         }
-        console.log("SAVE5")
         if (matchingIndex < 0) {
             return;
         }
-        console.log("SAVE6666")
         rows.removeAt(matchingIndex);
         if (matchingIndex === 0) {
-            currentFedId = null;
+            setCurrentFedId(null);
             restoreState = null;
         }
-        console.log("SAVE7")
         if (queueActive() && !rows.getAt(0)) {
             settings.set("autofillStartStop", false);
         }
-        console.log("SAVE8")
     }
 
     function feedAfterQueueChange() {
-        currentFedId = null;
+        setCurrentFedId(null);
         restoreState = null;
         const clearButton = document.querySelector("app-order-label button");
         if (clearButton) {
@@ -853,7 +897,7 @@
 
         if (savedFormJson) {
             const textResult = getValuesString(savedFormJson)
-            rows[matchingIndex] = { ...rows[matchingIndex], savedFormJson,savedFormJsonText:textResult };
+            rows[matchingIndex] = { ...rows[matchingIndex], savedFormJson, savedFormJsonText: textResult };
         }
         if (rows.length < 2) {
             if (savedFormJson) {
@@ -869,6 +913,50 @@
         }
     }
 
+    function testRow(id) {
+        if (!settings.get("autofillEnabled")) {
+            return false;
+        }
+        const rows = queueRows().list();
+        const index = rows.findIndex((row) => row.id === id);
+        if (index < 0 || !UUID_PATTERN.test(rows[index].rubyId.trim())) {
+            console.warn("[Dimension Mapper] The selected autofill row needs a valid UUID.");
+            return false;
+        }
+
+        // Preserve work on the displayed device before the queue change clears the form.
+        const device = currentPageDevice();
+        let displayedIndex = matchingDeviceIndex(rows, device);
+        if (displayedIndex < 0 && device && currentFedId) {
+            displayedIndex = rows.findIndex((row) => row.id === currentFedId &&
+                row.rubyId.trim().toLowerCase() === device.uuid.toLowerCase());
+        }
+        if (displayedIndex >= 0) {
+            const savedFormJson = captureCurrentForm(rows[displayedIndex]);
+            if (savedFormJson) {
+                rows[displayedIndex] = { ...rows[displayedIndex], savedFormJson,
+                    savedFormJsonText: getValuesString(savedFormJson) };
+            }
+        }
+
+        if (queueActive() && index === 0 && displayedIndex === 0 && currentFedId === id) {
+            // The requested row is already on screen; keep the in-progress form intact.
+            settings.set("autofill", rows);
+            return true;
+        }
+
+        const [selected] = rows.splice(index, 1);
+        rows.unshift(selected);
+        settings.set("autofill", rows);
+        if (queueActive()) {
+            feedAfterQueueChange();
+        } else {
+            // The setting's onChange starts the same autofill path as the Active toggle.
+            settings.set("autofillStartStop", true);
+        }
+        return true;
+    }
+
     function removeRow(id) {
         const rows = queueRows();
         const wasFirst = rows.getAt(0)?.id === id;
@@ -877,7 +965,7 @@
         }
         if (!rows.getAt(0)) {
             settings.set("autofillStartStop", false);
-            currentFedId = null;
+            setCurrentFedId(null);
         } else if (wasFirst && queueActive()) {
             feedAfterQueueChange();
         }
@@ -942,7 +1030,8 @@
                     { type: "space", width: "100%" },
                     {
                         setting: "autofillStartStop", control: "toggleButton",
-                        onLabel: "Active: On", offLabel: "Active: Off", size: "200px"
+                        onLabel: "Active: On", offLabel: "Active: Off", size: "200px",
+                        enabledWhen: { setting: "autofillEnabled", equals: true }
                     },
                     { type: "button", label: "Save current", onClick: saveCurrentDevice },
                     { setting: "autofillShowAdditionalSettings", control: "toggleButton", onLabel: "Show Settings: On", offLabel: "Show Settings: Off", size: "200px" },
@@ -955,13 +1044,16 @@
             { setting: "hideRemoveButtonWhenActive", control: "toggleButton", onLabel: "Hide remove button when active: On", offLabel: "Hide remove button when active: Off", size: "350px", visibleWhen: { setting: "autofillShowAdditionalSettings", equals: true } },
             { type: "divider" },
             {
-                type: "repeater", setting: "autofill", children: [
+                id: "autofill-repeater", type: "repeater", setting: "autofill",
+                onRender: renderAutofillOutline,
+                children: [
                     {
                         type: "horizontalGroup", children: [
                             { setting: "rowNum", type: "dynamicLabel", alignText: "center", size: "36px" },
                             { setting: "rubyId", control: "textInput", placeholder: "UUID", size: "100%", validationFeedback: { regex: UUID_PATTERN }, onInput: onScan },
                             { setting: "identifier", control: "textInput", placeholder: "Serial / IMEI", size: "50%", onInput: onScan },
                             { setting: "savedFormJsonText", control: "textInput", placeholder: "Comment / Info", size: "150%", visibleWhen: { setting: "autofillShowComments", equals: true } },
+                            { type: "button", label: "Test", onClick({ row }) { testRow(row.id); } },
                             { type: "button", label: "Skip", onClick({ row }) { skipRow(row.id); } },
                             {
                                 id: "autofillRemoveBtn", type: "button", label: "Remove", buttonColor: "#ff5555",
@@ -978,6 +1070,12 @@
 
     const settingsUI = {
         type: "verticalGroup", children: [
+            {
+                type: "panel", label: "Autofill", collapsible: true, children: [
+                    { setting: "autofillEnabled", control: "toggleButton", label: "Enable autofill", onLabel: "On", offLabel: "Off" },
+                    { setting: "autofillShowMount", control: "toggleButton", label: "Show autofill panel on page", onLabel: "Show", offLabel: "Hide" }
+                ]
+            },
             {
                 type: "panel", label: "PHC comment mappings", collapsible: true, children: [
                     { setting: "phcEnabled", width: "250px", control: "toggleButton", onLabel: "Enabled", offLabel: "Disabled" },
@@ -1190,6 +1288,8 @@
                     }
                 },
                 autofillAddCount: { type: "text", default: "10" },
+                autofillEnabled: { type: "toggle", default: true, onChange: onAutofillEnabledChange },
+                autofillShowMount: { type: "toggle", default: true, onChange: syncAutofillMount },
                 autofillShowComments: { type: "toggle", default: true },
                 autofillRestoreFromSnapshot: { type: "toggle", default: false },
                 hideRemoveButtonWhenActive: { type: "toggle", default: true },
@@ -1202,7 +1302,7 @@
                 },
                 autofill: {
                     type: "collection", default: [],
-                    headers: ["#", "UUID", "Identifier", "Info", "", ""],
+                    headers: ["#", "UUID", "Identifier", "Info", "", "", ""],
                     item: {
                         rowNum: { type: "text", default: "0" },
                         rubyId: { type: "text", default: "" },
@@ -1241,7 +1341,10 @@
                     },
                     selector: "app-today-stats",
                     events: ["create"],
-                    onCreate: (anchor) => feature.ui.mount(inlineSettingsLayout, { anchor, position: "before" })
+                    onCreate(anchor) {
+                        autofillAnchor = anchor;
+                        syncAutofillMount();
+                    }
                 },
                 {
                     id: "dimension-mapper-uuid",
