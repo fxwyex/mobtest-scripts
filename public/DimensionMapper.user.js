@@ -1241,7 +1241,7 @@
         manager.registerFeature({
             id: FEATURE_ID,
             name: "Dimension Mapper",
-            version: "1.2.1",
+            version: "1.3.0",
             description: "Dimension profiles, CDW comment mapping and Autofill.",
             settings: {
                 phcEnabled: { type: "toggle", default: true },
