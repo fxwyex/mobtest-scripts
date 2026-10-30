@@ -1,11 +1,11 @@
 // ==UserScript==
-// @name         QOL changes
+// @name         QOL features (RSM)
 // @namespace    http://tampermonkey.net/
-// @version      1.0.0
+// @version      1.2.0
 // @description
 // @updateURL    https://github.com/fxwyex/mobtest-scripts/raw/refs/heads/main/public/QOLChanges.user.js
 // @downloadURL  https://github.com/fxwyex/mobtest-scripts/raw/refs/heads/main/public/QOLChanges.user.js
-// @include      /^https:\/\/*r*.*a*.*tech\/?/
+// @include      /^https:\/\/r*.*a*.*tech\/?/
 // @grant        GM_addStyle
 // @grant        unsafeWindow
 // ==/UserScript==
@@ -63,28 +63,32 @@
             }
         };
     };
-
+    const CDW_ELEMENT_ID = "cdw_condensed_list_id"
     function applyCDWFilter(showFailedOnly) {
-        const container = document.querySelector("app-device-diagnostic-data");
-        if (!container) {
-            return;
-        }
-        const successfulRows = new Set();
-        if (showFailedOnly) {
-            container.querySelectorAll(".text-success-emphasis").forEach((item) => {
-                const row = item.parentElement?.parentElement;
-                if (row && row !== container && container.contains(row)) {
-                    successfulRows.add(row);
-                }
-            });
-        }
-        container.querySelectorAll(`.${FILTER_CLASS}`).forEach((row) => {
-            if (!successfulRows.has(row)) {
-                row.classList.remove(FILTER_CLASS);
+        let eleArraySuccess = document.querySelector("app-device-diagnostic-data")?.querySelectorAll(".text-success-emphasis");
+        if (showFailedOnly && eleArraySuccess){
+            let eleList = eleArraySuccess[0]?.parentElement.parentElement.parentElement
+            if (eleList && !eleList.querySelector(`#${CDW_ELEMENT_ID}`)) {
+                let eleArrayFailed = document.querySelector("app-device-diagnostic-data")?.querySelectorAll(".text-danger-emphasis");
+                let clone = eleArraySuccess[0].parentElement.parentElement.cloneNode(true);
+                let text = clone.firstChild.firstChild.firstChild
+                clone.id = CDW_ELEMENT_ID
+                eleList.insertBefore(clone,eleList.firstChild);
+                text.firstChild.innerText = "Tests Passed"
+                text.lastChild.innerText = eleArraySuccess.length + "/" + (eleArraySuccess.length + eleArrayFailed.length)
+                console.log(clone)
             }
-        });
-        successfulRows.forEach((row) => row.classList.add(FILTER_CLASS));
+        }
+        eleArraySuccess.forEach(item => {
+            if (item.parentElement.parentElement.id != CDW_ELEMENT_ID) {
+                item.parentElement.parentElement.style.display = showFailedOnly ? "none" : ""
+            } else {
+                item.parentElement.parentElement.style.display = showFailedOnly ? "" : "none"
+            }
+
+        })
     };
+
 
     function CDWShowFailed() {
         applyCDWFilter(settings.get("CDWShowFailedOnly"));
@@ -114,22 +118,22 @@
     }
     function autoScrollDimsToView() {
         if (settings.get("scrollDimensionView")) {
-            document.querySelector("app-device-info-and-checks")?.scrollIntoView({ behavior: "smooth", block: "end", inline: "nearest" });
+            document.querySelector("app-test-plan-form app-footer button")?.scrollIntoView({ behavior: "smooth", block: "end", inline: "nearest" });
         }
     }
     function register(manager) {
         manager.registerFeature({
             id: "ruby-testing-qol-tweaks-changes",
             name: "Ruby Tweaks And Changes",
-            version: "1.0.0",
+            version: "1.2.0",
             description: "Small tweaks and quality of life changes.",
 
             settings: {
-                showPrestockButton: { type: "toggle", default: true, bindingId: "prestock-po-button", onChange: onPrestockChange },
-                scrollDimensionView: { type: "toggle", default: true, bindingId: "scroll-to-view-dimensions", onChange: autoScrollDimsToView },
-                scrollRetailView: { type: "toggle", default: true, bindingId: "scroll-to-view-gradingform", onChange: autoScrollRetailToView },
-                autofillStorage: { type: "toggle", default: false, bindingId: "auto-fill-storage", onChange: autoMapStorage },
-                CDWShowFailedOnly: { type: "toggle", default: false, bindingId: "cdw-show-failed", onChange: CDWShowFailed },
+                showPrestockButton: { type: "toggle", default: true, onChange: onPrestockChange },
+                scrollDimensionView: { type: "toggle", default: true, onChange: autoScrollDimsToView },
+                scrollRetailView: { type: "toggle", default: true, onChange: autoScrollRetailToView },
+                autofillStorage: { type: "toggle", default: false, onChange: autoMapStorage },
+                CDWShowFailedOnly: { type: "toggle", default: false, onChange: CDWShowFailed },
             },
 
             settingsUI: {
@@ -182,7 +186,7 @@
                         urlOrigin: ["0750e4c04e76d7e6b04dffb0f4fbb04159936b9bf7a32884b0596de0c7786d0c"],
                         check: () => location.pathname.includes("/testing")
                     },
-                    selector: "app-test-plan-form > form > app-footer > div > button",
+                    selector: "app-test-plan-form app-footer button",
                     events: ["create"],
                     onCreate: autoScrollDimsToView,
                 },
@@ -194,7 +198,6 @@
                     },
                     selector: "app-provider-data > app-generic-provider > div > app-label-row",
                     events: ["create"],
-                    suppressSelfRetrigger: true,
                     onCreate: autoMapStorage,
                 },
                 {
@@ -203,9 +206,8 @@
                         urlOrigin: ["0750e4c04e76d7e6b04dffb0f4fbb04159936b9bf7a32884b0596de0c7786d0c"],
                         check: () => location.pathname.includes("/testing")
                     },
-                    selector: "app-device-diagnostic-data",
+                    selector: "app-test-results-block",
                     events: ["create"],
-                    suppressSelfRetrigger: true,
                     onCreate: CDWShowFailed,
                 }
             ]
